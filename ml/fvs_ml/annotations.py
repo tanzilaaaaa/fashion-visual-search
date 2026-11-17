@@ -63,6 +63,8 @@ def discover_splits(dataset_root: Path) -> dict[str, tuple[Path, Path]]:
             # Keep the shallowest match per split.
             if split not in found or len(parent.parts) < len(found[split][1].parts):
                 found[split] = (image_dir, parent / "annos")
+        # Never descend into the (huge) image/annotation folders themselves.
+        dirnames[:] = [d for d in dirnames if d not in ("annos", "image", "images")]
     return found
 
 

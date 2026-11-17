@@ -13,25 +13,31 @@ interface Props {
 }
 
 export function ResultCard({ item, rank, onExpand, showReason, compact }: Props) {
+  // CLIP cosine for good matches sits roughly in 0.2–0.4 (text) / 0.6–0.95 (image);
+  // the meter shows similarity on a 0–1 scale.
+  const meter = Math.max(0.04, Math.min(1, item.similarity));
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="relative aspect-[3/4] overflow-hidden bg-stone-100">
-        <Link to={`/item/${item.item_id}`} className="block h-full focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
+    <article className="card group flex h-full flex-col overflow-hidden p-0 transition duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-lift">
+      <div className="relative aspect-[3/4] overflow-hidden bg-surface-2">
+        <Link
+          to={`/app/item/${item.item_id}`}
+          className="block h-full focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+        >
           <img
             src={imageSrc(item.image_url)}
             alt={altText(item)}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-contain p-2 transition duration-300 group-hover:scale-[1.03]"
+            className="h-full w-full object-contain p-3 transition duration-500 group-hover:scale-[1.05]"
           />
         </Link>
         {rank !== undefined && (
-          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold tabular-nums text-ink-soft shadow-sm">
+          <span className="glass absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums text-ink">
             #{rank}
           </span>
         )}
         <span
-          className="absolute right-2 top-2 rounded-full bg-ink/85 px-2 py-0.5 text-xs font-semibold tabular-nums text-white"
+          className="absolute right-2.5 top-2.5 rounded-full bg-ink/85 px-2 py-0.5 text-xs font-semibold tabular-nums text-canvas"
           title={`Final score ${formatScore(item.score)} · cosine similarity ${formatScore(item.similarity)}`}
         >
           {formatScore(item.score)}
@@ -40,37 +46,40 @@ export function ResultCard({ item, rank, onExpand, showReason, compact }: Props)
           <button
             type="button"
             onClick={() => onExpand(item)}
-            className="absolute bottom-2 right-2 rounded-full bg-white/90 p-1.5 text-ink-soft opacity-0 shadow-sm transition group-hover:opacity-100 focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+            className="glass absolute bottom-2.5 right-2.5 rounded-full p-2 text-ink opacity-0 transition group-hover:opacity-100 focus:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
             aria-label={`View ${altText(item)} larger`}
           >
             <ExpandIcon width={16} height={16} />
           </button>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-1.5 p-3">
+      <div className="flex flex-1 flex-col gap-1.5 p-3.5">
         <h3 className="text-sm font-semibold leading-snug text-ink">{capitalise(item.category)}</h3>
         <div className="flex items-center gap-2 text-xs text-ink-muted">
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full border border-stone-300" style={{ background: COLOUR_SWATCH[item.colour] ?? "#ccc" }} />
+            <span className="h-2.5 w-2.5 rounded-full border border-line" style={{ background: COLOUR_SWATCH[item.colour] ?? "#ccc" }} />
             {capitalise(item.colour)}
           </span>
           <span aria-hidden="true">·</span>
           <span>{SOURCE_LABEL[item.source] ?? item.source}</span>
         </div>
+        <div className="mt-1 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+          <div className="bg-gradient-accent h-full rounded-full" style={{ width: `${meter * 100}%` }} />
+        </div>
         {showReason && item.reason && <p className="text-xs leading-relaxed text-ink-soft">{item.reason}</p>}
         {!compact && (
-          <div className="mt-auto flex gap-1.5 pt-2">
+          <div className="mt-auto flex gap-1.5 pt-2.5">
             <Link
-              to={`/item/${item.item_id}#similar`}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-ink-soft transition hover:border-ink hover:text-ink"
+              to={`/app/item/${item.item_id}#similar`}
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-line px-2 py-1.5 text-xs font-medium text-ink-soft transition hover:border-accent hover:text-accent"
             >
               <SparkIcon width={14} height={14} /> Similar
             </Link>
             <Link
-              to={`/item/${item.item_id}#look`}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-medium text-ink-soft transition hover:border-ink hover:text-ink"
+              to={`/app/item/${item.item_id}#look`}
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-full border border-line px-2 py-1.5 text-xs font-medium text-ink-soft transition hover:border-accent hover:text-accent"
             >
-              <LayersIcon width={14} height={14} /> Complete look
+              <LayersIcon width={14} height={14} /> Look
             </Link>
           </div>
         )}
@@ -81,11 +90,11 @@ export function ResultCard({ item, rank, onExpand, showReason, compact }: Props)
 
 export function ResultCardSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white" aria-hidden="true">
-      <div className="aspect-[3/4] animate-pulse bg-stone-200" />
-      <div className="space-y-2 p-3">
-        <div className="h-4 w-2/3 animate-pulse rounded bg-stone-200" />
-        <div className="h-3 w-1/2 animate-pulse rounded bg-stone-200" />
+    <div className="card overflow-hidden p-0" aria-hidden="true">
+      <div className="shimmer aspect-[3/4]" />
+      <div className="space-y-2 p-3.5">
+        <div className="shimmer h-4 w-2/3 rounded" />
+        <div className="shimmer h-3 w-1/2 rounded" />
       </div>
     </div>
   );

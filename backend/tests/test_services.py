@@ -5,6 +5,7 @@ from __future__ import annotations
 import faiss
 import numpy as np
 import pytest
+from PIL import Image
 
 from app.core.config import BACKEND_DIR, Settings
 from app.services.embedding import EmbeddingService, l2_normalise
@@ -13,7 +14,7 @@ from app.services.metadata import MetadataService, UnknownFilterValue
 from app.services.query_parser import parse_query
 from app.services.recommendation import CompatibilityMap
 from app.services.search import attribute_match
-from tests.conftest import FakeEncoder, catalogue
+from tests.conftest import FakeEncoder, catalogue, make_settings
 
 
 @pytest.mark.parametrize("query,cats,colours", [
@@ -119,3 +120,61 @@ def test_settings_parse_comma_separated_origins(monkeypatch):
     monkeypatch.setenv("ALLOWED_ORIGINS", "https://a.vercel.app, http://localhost:5173")
     s = Settings(_env_file=None)
     assert s.allowed_origins == ["https://a.vercel.app", "http://localhost:5173"]
+
+
+# --------------------------------------------------------------- fine-tuned adapter
+def _write_adapter(path, dim=16, hidden=8, ratio=0.5, seed=0):
+    rng = np.random.default_rng(seed)
+    np.savez(path, W1=rng.normal(size=(hidden, dim)).astype(np.float32), b1=np.zeros(hidden, np.float32),
+             W2=rng.normal(size=(dim, hidden)).astype(np.float32), b2=np.zeros(dim, np.float32),
+             ratio=np.float32(ratio))
+
+
+def test_adapter_apply_is_unit_norm_and_identity_at_ratio_zero(tmp_path):
+    from app.services.adapter import Adapter
+
+    _write_adapter(tmp_path / "a.npz", ratio=0.0)
+    a = Adapter.from_npz(tmp_path / "a.npz")
+    z = np.random.default_rng(1).normal(size=(3, 16)).astype(np.float32)
+    z /= np.linalg.norm(z, axis=1, keepdims=True)
+    np.testing.assert_allclose(a.apply(z), z, atol=1e-6)
+    _write_adapter(tmp_path / "b.npz", ratio=0.7)
+    out = Adapter.from_npz(tmp_path / "b.npz").apply(z)
+    np.testing.assert_allclose(np.linalg.norm(out, axis=1), 1.0, atol=1e-5)
+    assert not np.allclose(out, z)
+
+
+def test_adapter_matches_training_implementation(tmp_path):
+    fin = pytest.importorskip("fvs_ml.finetune")
+    from app.services.adapter import Adapter
+
+    _write_adapter(tmp_path / "a.npz", ratio=0.4)
+    z = np.random.default_rng(2).normal(size=(4, 16)).astype(np.float32)
+    ref = fin.apply_adapter_np(fin.load_adapter(tmp_path / "a.npz"), z)
+    np.testing.assert_allclose(Adapter.from_npz(tmp_path / "a.npz").apply(z), ref, atol=1e-6)
+
+
+def test_container_loads_adapter_and_image_search_uses_it(artifacts):
+    import json
+
+    from app.container import build_container
+
+    _write_adapter(artifacts / "adapter.npz", ratio=0.3)
+    (artifacts / "manifest.json").write_text(json.dumps({"item_count": 24, "adapter": {"file": "adapter.npz"}}))
+    c = build_container(make_settings(artifacts), encoder=FakeEncoder())
+    assert c.ready and c.embedding.adapter is not None
+    assert c.embedding.model_name.endswith("+ fine-tuned adapter")
+    raw, served = c.embedding.encode_image_views(Image.new("RGB", (8, 8), (200, 0, 0)))
+    np.testing.assert_allclose(served, c.embedding.adapter.apply(raw), atol=1e-6)
+    # Text vectors are not adapted.
+    np.testing.assert_allclose(np.linalg.norm(c.embedding.encode_text("red dress")), 1.0, atol=1e-5)
+
+
+def test_container_degrades_when_manifest_expects_missing_adapter(artifacts):
+    import json
+
+    from app.container import build_container
+
+    (artifacts / "manifest.json").write_text(json.dumps({"item_count": 24, "adapter": {"file": "adapter.npz"}}))
+    c = build_container(make_settings(artifacts), encoder=FakeEncoder())
+    assert not c.ready and c.startup_error == "FileNotFoundError"

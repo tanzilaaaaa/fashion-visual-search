@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
+import { AuthProvider } from "../context/AuthContext";
 import { SearchProvider } from "../context/SearchContext";
 import { SearchPage } from "../pages/SearchPage";
 import { filtersResponse, searchResponse } from "./fixtures";
@@ -15,6 +16,7 @@ vi.mock("../api/client", async (orig) => {
       searchText: vi.fn(),
       searchImage: vi.fn(),
       filters: vi.fn(),
+      me: vi.fn(),
     },
   };
 });
@@ -24,9 +26,11 @@ const mocked = api as unknown as Record<string, ReturnType<typeof vi.fn>>;
 function renderPage() {
   return render(
     <MemoryRouter>
-      <SearchProvider>
-        <SearchPage />
-      </SearchProvider>
+      <AuthProvider>
+        <SearchProvider>
+          <SearchPage />
+        </SearchProvider>
+      </AuthProvider>
     </MemoryRouter>,
   );
 }
@@ -34,9 +38,15 @@ function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocked.filters.mockResolvedValue(filtersResponse);
+  mocked.me.mockResolvedValue({ authenticated: true, auth_enabled: true, user: { id: 1, name: "Tanzila Tahreem", email: "t@example.com" } });
 });
 
 describe("SearchPage", () => {
+  it("greets the signed-in user by first name", async () => {
+    renderPage();
+    expect(await screen.findByText(/, Tanzila$/)).toBeInTheDocument();
+  });
+
   it("shows a loading state, then a ranked grid with scores", async () => {
     let resolve!: (v: unknown) => void;
     mocked.searchText.mockReturnValue(new Promise((r) => (resolve = r)));

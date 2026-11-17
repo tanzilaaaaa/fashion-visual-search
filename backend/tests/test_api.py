@@ -223,19 +223,7 @@ def test_cors_allows_only_configured_origin(client):
 
 
 # --------------------------------------------------------------- security
-def test_session_login_flow(make_client):
-    c = make_client(auth_enabled=True, demo_password="s3cret", session_secret="test")
-    assert c.post("/search/text", json={"query": "dress"}).status_code == 401
-    assert c.get("/auth/me").json()["authenticated"] is False
-    bad = c.post("/auth/login", json={"username": "demo", "password": "wrong"})
-    assert bad.status_code == 401
-    ok = c.post("/auth/login", json={"username": "demo", "password": "s3cret"})
-    assert ok.status_code == 200 and "fvs_session" in ok.cookies
-    assert c.post("/search/text", json={"query": "dress"}).status_code == 200
-    assert c.get("/auth/me").json()["username"] == "demo"
-    c.post("/auth/logout")
-    c.cookies.clear()
-    assert c.post("/search/text", json={"query": "dress"}).status_code == 401
+# Account / session tests live in test_auth.py.
 
 
 def test_rate_limit_returns_429(make_client):

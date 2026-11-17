@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import FileResponse
 
 from ...container import Container
-from ...schemas.api import FiltersResponse, HealthResponse
+from ...schemas.api import FiltersResponse, HealthResponse, ShowcaseResponse
 from ..deps import get_container
 from ..errors import not_found, service_unavailable
+from ..serializers import summary
 
 router = APIRouter(tags=["meta"])
 
@@ -31,6 +32,28 @@ def filters(c: Container = Depends(get_container)):
     if c.metadata is None:
         raise service_unavailable()
     return FiltersResponse(fields=c.metadata.vocabulary())
+
+
+@router.get("/showcase", response_model=ShowcaseResponse, summary="Category-diverse sample for the landing page")
+def showcase(n: int = Query(12, ge=1, le=48), c: Container = Depends(get_container)):
+    """Public, deterministic sample: round-robin over categories, shop photos first
+    (clean product shots), spread across the catalogue rather than its first rows."""
+    if c.metadata is None:
+        raise service_unavailable()
+    by_cat: dict[str, list[dict]] = {}
+    for it in c.metadata.items:
+        by_cat.setdefault(it["category_key"], []).append(it)
+    queues = []
+    for cat in sorted(by_cat):
+        group = sorted(by_cat[cat], key=lambda it: (it.get("source") != "shop", it["position"]))
+        step = max(1, len(group) // max(1, n))
+        queues.append(group[::step])
+    picked: list[dict] = []
+    while len(picked) < n and any(queues):
+        for q in queues:
+            if q and len(picked) < n:
+                picked.append(q.pop(0))
+    return ShowcaseResponse(items=[summary(it) for it in picked])
 
 
 @router.get("/images/{item_id}", summary="Serve a garment thumbnail", response_class=FileResponse)

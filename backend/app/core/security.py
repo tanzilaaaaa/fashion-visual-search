@@ -1,8 +1,6 @@
-"""Optional demo session login (PRD §11.1): a signed, expiring cookie — no user table."""
+"""Session cookies: an HMAC-signed, expiring token carrying the user id (itsdangerous)."""
 
 from __future__ import annotations
-
-import hmac
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
@@ -14,22 +12,15 @@ class SessionSigner:
         self._serializer = URLSafeTimedSerializer(secret, salt="fvs-session")
         self.max_age_s = max_age_s
 
-    def issue(self, username: str) -> str:
-        return self._serializer.dumps({"u": username})
+    def issue(self, user_id: int) -> str:
+        return self._serializer.dumps({"uid": int(user_id)})
 
-    def verify(self, token: str | None) -> str | None:
+    def verify(self, token: str | None) -> int | None:
         if not token:
             return None
         try:
             data = self._serializer.loads(token, max_age=self.max_age_s)
         except (BadSignature, SignatureExpired):
             return None
-        return data.get("u") if isinstance(data, dict) else None
-
-
-def credentials_match(username: str, password: str, expected_user: str, expected_password: str) -> bool:
-    if not expected_password:
-        return False  # login disabled until a password is configured
-    user_ok = hmac.compare_digest(username.encode(), expected_user.encode())
-    pass_ok = hmac.compare_digest(password.encode(), expected_password.encode())
-    return user_ok and pass_ok
+        uid = data.get("uid") if isinstance(data, dict) else None
+        return uid if isinstance(uid, int) else None

@@ -8,6 +8,7 @@ from ..container import Container
 from ..core.security import COOKIE_NAME
 from ..services.recommendation import RecommendationService
 from ..services.search import SearchService
+from ..services.users import User
 from .errors import service_unavailable, unauthorized
 
 
@@ -15,11 +16,16 @@ def get_container(request: Request) -> Container:
     return request.app.state.container
 
 
-def require_session(request: Request, c: Container = Depends(get_container)) -> str | None:
-    """No-op unless AUTH_ENABLED; then a valid signed session cookie is required."""
+def current_user(request: Request, c: Container = Depends(get_container)) -> User | None:
+    """The signed-in user, or ``None`` (also ``None`` when the account no longer exists)."""
+    uid = c.signer.verify(request.cookies.get(COOKIE_NAME))
+    return c.users.get(uid) if uid is not None else None
+
+
+def require_session(c: Container = Depends(get_container), user: User | None = Depends(current_user)) -> User | None:
+    """No-op unless AUTH_ENABLED; then a valid session for an existing account is required."""
     if not c.settings.auth_enabled:
-        return None
-    user = c.signer.verify(request.cookies.get(COOKIE_NAME))
+        return user
     if user is None:
         raise unauthorized()
     return user

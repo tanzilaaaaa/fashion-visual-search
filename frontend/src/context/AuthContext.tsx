@@ -1,12 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { api } from "../api/client";
-import type { SessionResponse } from "../api/types";
+import type { SessionResponse, User } from "../api/types";
 
 interface AuthValue {
   session: SessionResponse | null;
+  user: User | null;
   checking: boolean;
-  login: (u: string, p: string) => Promise<void>;
+  /** True when the user may use the app (signed in, or the server has auth disabled). */
+  allowed: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -20,19 +24,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api
       .me()
       .then(setSession)
-      // If the server is unreachable, don't block the UI behind a login wall;
-      // the search page will show the connection error instead.
-      .catch(() => setSession({ authenticated: true, auth_enabled: false }))
+      // Server unreachable: treat as signed out; pages show the connection error.
+      .catch(() => setSession({ authenticated: false, auth_enabled: true, user: null }))
       .finally(() => setChecking(false));
   }, []);
 
-  const login = useCallback(async (u: string, p: string) => setSession(await api.login(u, p)), []);
+  const login = useCallback(async (email: string, password: string) => setSession(await api.login(email, password)), []);
+  const register = useCallback(
+    async (name: string, email: string, password: string) => setSession(await api.register(name, email, password)),
+    [],
+  );
   const logout = useCallback(async () => {
-    await api.logout().catch(() => undefined);
-    setSession((s) => (s ? { ...s, authenticated: false, username: null } : s));
+    const next = await api.logout().catch(() => null);
+    setSession(next ?? { authenticated: false, auth_enabled: true, user: null });
   }, []);
 
-  return <AuthContext.Provider value={{ session, checking, login, logout }}>{children}</AuthContext.Provider>;
+  const allowed = !!session && (session.authenticated || !session.auth_enabled);
+  return (
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, checking, allowed, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
@@ -41,13 +53,17 @@ export function useAuth() {
   return ctx;
 }
 
-/** Only gates routes when the backend has AUTH_ENABLED=true. */
+/** Gate for /app routes: unauthenticated visitors are sent to sign in, then returned. */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { session, checking } = useAuth();
+  const { checking, allowed } = useAuth();
   const location = useLocation();
-  if (checking) return null;
-  if (session?.auth_enabled && !session.authenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  if (checking) {
+    return (
+      <div className="grid min-h-[60vh] place-items-center" role="status" aria-label="Checking your session">
+        <span className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-accent" />
+      </div>
+    );
   }
+  if (!allowed) return <Navigate to="/signin" replace state={{ from: location.pathname + location.hash }} />;
   return <>{children}</>;
 }

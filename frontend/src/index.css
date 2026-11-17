@@ -2,9 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens. Every colour in the UI is one of these variables (as an "R G B"
+ * triplet, so Tailwind's /<alpha> modifiers work). A theme is just a block that
+ * redefines them on <html data-theme="…">; no component knows which theme is on.
+ *
+ * Chart series pairs are validated per theme surface (lightness band, chroma floor,
+ * colour-blind separation, contrast >= 3:1) with the dataviz palette validator.
+ */
 @layer base {
+  :root,
+  [data-theme="atelier"] {
+    color-scheme: light;
+    --canvas: 250 247 242;
+    --surface: 255 255 255;
+    --surface-2: 243 238 230;
+    --line: 231 224 213;
+    --ink: 28 25 23;
+    --ink-soft: 68 64 60;
+    --ink-muted: 120 113 108;
+    --accent: 159 18 57;
+    --accent-hover: 136 19 55;
+    --accent-soft: 255 228 230;
+    --on-accent: 255 255 255;
+    --accent-2: 194 65 12;
+    --danger: 190 18 60;
+    --danger-soft: 255 241 242;
+    --success: 22 163 74;
+    --series-1: #9f1239;
+    --series-2: #2a78d6;
+    --font-display: "Fraunces", ui-serif, Georgia, serif;
+    --radius: 1rem;
+    --glow: 0 30px 80px -30px rgb(159 18 57 / 0.35);
+  }
+
+  [data-theme="midnight"] {
+    color-scheme: dark;
+    --canvas: 9 9 18;
+    --surface: 20 20 31;
+    --surface-2: 30 30 46;
+    --line: 45 45 66;
+    --ink: 244 244 248;
+    --ink-soft: 201 201 214;
+    --ink-muted: 142 142 163;
+    --accent: 167 139 250;
+    --accent-hover: 196 181 253;
+    --accent-soft: 46 37 80;
+    --on-accent: 18 14 36;
+    --accent-2: 244 114 182;
+    --danger: 251 113 133;
+    --danger-soft: 60 20 34;
+    --success: 52 211 153;
+    --series-1: #8b5cf6;
+    --series-2: #0d9488;
+    --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --radius: 1.25rem;
+    --glow: 0 30px 90px -25px rgb(167 139 250 / 0.45);
+  }
+
+  [data-theme="blush"] {
+    color-scheme: light;
+    --canvas: 255 246 248;
+    --surface: 255 255 255;
+    --surface-2: 253 234 239;
+    --line: 246 213 221;
+    --ink: 52 20 30;
+    --ink-soft: 98 58 70;
+    --ink-muted: 145 107 118;
+    --accent: 219 39 119;
+    --accent-hover: 190 24 93;
+    --accent-soft: 252 231 243;
+    --on-accent: 255 255 255;
+    --accent-2: 251 146 60;
+    --danger: 190 18 60;
+    --danger-soft: 255 241 242;
+    --success: 22 163 74;
+    --series-1: #be185d;
+    --series-2: #1d6fd1;
+    --font-display: "DM Serif Display", ui-serif, Georgia, serif;
+    --radius: 1.5rem;
+    --glow: 0 30px 80px -30px rgb(219 39 119 / 0.35);
+  }
+
+  [data-theme="noir"] {
+    color-scheme: dark;
+    --canvas: 8 8 8;
+    --surface: 19 19 19;
+    --surface-2: 28 28 28;
+    --line: 46 43 38;
+    --ink: 245 241 232;
+    --ink-soft: 207 200 184;
+    --ink-muted: 150 142 124;
+    --accent: 212 175 55;
+    --accent-hover: 230 197 90;
+    --accent-soft: 42 36 20;
+    --on-accent: 10 10 10;
+    --accent-2: 245 230 179;
+    --danger: 248 113 113;
+    --danger-soft: 58 22 22;
+    --success: 74 222 128;
+    --series-1: #b08d2e;
+    --series-2: #3d7fe0;
+    --font-display: "Playfair Display", ui-serif, Georgia, serif;
+    --radius: 0.375rem;
+    --glow: 0 30px 90px -30px rgb(212 175 55 / 0.35);
+  }
+
   html {
     scroll-behavior: smooth;
+  }
+  body {
+    background: rgb(var(--canvas));
+    color: rgb(var(--ink));
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  ::selection {
+    background: rgb(var(--accent) / 0.25);
   }
   @media (prefers-reduced-motion: reduce) {
     html {
@@ -14,7 +127,109 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgb(var(--surface) / 0.72);
+    border: 1px solid rgb(var(--line) / 0.8);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  }
+  .card {
+    @apply rounded-theme border border-line bg-surface shadow-card;
+  }
+  .text-gradient {
+    background: linear-gradient(100deg, rgb(var(--accent)), rgb(var(--accent-2)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .bg-gradient-accent {
+    background: linear-gradient(120deg, rgb(var(--accent)), rgb(var(--accent-2)));
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
+      disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-on-accent shadow-glow hover:bg-accent-hover;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-surface/60 text-ink hover:border-ink-muted;
+  }
+  .chip {
+    @apply rounded-full border border-line bg-surface px-3 py-1 text-sm text-ink-soft transition hover:border-accent hover:text-ink
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-ink-muted/70
+      focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-accent;
+  }
+  .shimmer {
+    background: linear-gradient(
+      100deg,
+      rgb(var(--surface-2)) 30%,
+      rgb(var(--line) / 0.9) 50%,
+      rgb(var(--surface-2)) 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  .bg-mesh {
+    background:
+      radial-gradient(60% 50% at 15% 10%, rgb(var(--accent) / 0.16), transparent 60%),
+      radial-gradient(50% 45% at 90% 20%, rgb(var(--accent-2) / 0.14), transparent 60%),
+      radial-gradient(40% 40% at 50% 100%, rgb(var(--accent) / 0.08), transparent 60%);
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(rgb(var(--line) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--line) / 0.5) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
   }
 }

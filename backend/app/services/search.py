@@ -89,8 +89,8 @@ class SearchService:
         weights: RankingWeights | None = None,
     ) -> SearchOutcome:
         t0 = time.perf_counter()
-        vector = self.embedding.encode_image(image)
-        detected, guesses = self.infer_attributes(vector)
+        raw, vector = self.embedding.encode_image_views(image)
+        detected, guesses = self.infer_attributes(raw)
         out = self.rank(vector, top_k, filters, detected, weights or self.default_weights)
         out.extras["inferred"] = guesses
         out.latency_ms = (time.perf_counter() - t0) * 1000

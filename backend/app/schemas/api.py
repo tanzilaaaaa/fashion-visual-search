@@ -115,15 +115,33 @@ class HealthResponse(BaseModel):
     stats: dict
 
 
-class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=1, max_length=64)
+class RegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(..., min_length=1, max_length=60)
+    email: str = Field(..., min_length=3, max_length=254)
     password: str = Field(..., min_length=1, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(..., min_length=1, max_length=254)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class UserOut(BaseModel):
+    id: int
+    name: str
+    email: str
 
 
 class SessionResponse(BaseModel):
     authenticated: bool
-    username: str | None = None
     auth_enabled: bool
+    user: UserOut | None = None
+
+
+class ShowcaseResponse(BaseModel):
+    items: list[ItemSummary]
 
 
 class ErrorBody(BaseModel):

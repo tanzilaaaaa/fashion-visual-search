@@ -23,3 +23,10 @@ frontend/dist/
 .env.local
 .DS_Store
 .ipynb_checkpoints/
+
+# Kaggle build downloads
+ml/kaggle/last_run/
+
+# Local account database
+backend/data/
+*.db

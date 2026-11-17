@@ -2,20 +2,27 @@ import { useCallback, useState } from "react";
 import { api, imageSrc } from "../api/client";
 import type { ScoredItem } from "../api/types";
 import { FilterPanel } from "../components/FilterPanel";
+import { SlidersIcon } from "../components/Icons";
 import { ImageDropzone } from "../components/ImageDropzone";
 import { ImageModal } from "../components/ImageModal";
 import { RankingControls } from "../components/RankingControls";
 import { ResultGrid, ResultGridSkeleton } from "../components/ResultGrid";
 import { SearchBar } from "../components/SearchBar";
 import { EmptyState, ErrorState } from "../components/States";
-import { SlidersIcon } from "../components/Icons";
+import { useAuth } from "../context/AuthContext";
 import { useSearch } from "../context/SearchContext";
 import { useAsync } from "../hooks/useAsync";
 import { useSearchHistory } from "../hooks/useSearchHistory";
 import { humanise, percent } from "../lib/format";
 
+function greeting(now = new Date()) {
+  const h = now.getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+}
+
 export function SearchPage() {
   const s = useSearch();
+  const { user } = useAuth();
   const vocab = useAsync(() => api.filters(), []);
   const { history, add, clear } = useSearchHistory();
   const [expanded, setExpanded] = useState<ScoredItem | null>(null);
@@ -29,16 +36,17 @@ export function SearchPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
-      <section className="py-8 sm:py-10">
-        <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Find it by how it <em className="text-accent">looks</em>.
+    <div className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
+      <section className="py-10 sm:py-14">
+        <p className="eyebrow">{user ? `${greeting()}, ${user.name.split(" ")[0]}` : "Visual search"}</p>
+        <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
+          Find it by how it <span className="text-gradient italic">looks</span>.
         </h1>
-        <p className="mt-2 max-w-2xl text-ink-soft">
-          Describe a piece in your own words or upload a photo. CLIP maps both into the same visual space as the catalogue,
-          so you don't need to know any tags.
+        <p className="mt-3 max-w-2xl text-ink-soft">
+          Describe a piece in your own words or upload a photo. CLIP maps both into the same visual space as the
+          catalogue, so you never need to know a tag.
         </p>
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_22rem]">
+        <div className="glass mt-8 space-y-4 rounded-[calc(var(--radius)*1.5)] p-4 shadow-lift sm:p-5">
           <SearchBar
             initial={s.lastQuery?.kind === "text" ? s.lastQuery.text : ""}
             busy={busy}
@@ -54,19 +62,20 @@ export function SearchPage() {
         </div>
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-[15rem_1fr]">
+      <div className="grid gap-8 lg:grid-cols-[16rem_1fr]">
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <button
             type="button"
-            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-medium lg:hidden"
+            className="btn-ghost mb-4 lg:hidden"
             aria-expanded={showFilters}
             aria-controls="refine"
             onClick={() => setShowFilters((v) => !v)}
           >
             <SlidersIcon width={16} height={16} /> Refine results
           </button>
-          <div id="refine" className={`${showFilters ? "block" : "hidden"} space-y-8 lg:block`}>
+          <div id="refine" className={`${showFilters ? "block" : "hidden"} card space-y-8 p-5 lg:block`}>
             <RankingControls value={s.ranking} onChange={s.setRanking} disabled={busy} />
+            <div className="h-px bg-line" />
             {vocab.error ? (
               <p className="text-sm text-ink-muted">Filters are unavailable right now.</p>
             ) : (
@@ -85,9 +94,9 @@ export function SearchPage() {
           {s.status === "error" && s.error && <ErrorState error={s.error} onRetry={s.rerun} />}
           {s.status === "success" && s.response && (
             <>
-              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+              <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
                 {s.lastQuery?.kind === "image" && (
-                  <img src={s.lastQuery.previewUrl} alt="Query" className="h-10 w-8 rounded object-cover" />
+                  <img src={s.lastQuery.previewUrl} alt="Query" className="h-10 w-8 rounded-md object-cover ring-1 ring-line" />
                 )}
                 <p className="text-ink-soft">
                   <span className="font-semibold text-ink">{s.response.total}</span> results
@@ -112,7 +121,6 @@ export function SearchPage() {
         </section>
       </div>
       <ImageModal item={expanded} onClose={closeModal} />
-      {/* Preload hint so the first thumbnail paints quickly after a search. */}
       {s.response?.results[0] && <link rel="preload" as="image" href={imageSrc(s.response.results[0].image_url)} />}
     </div>
   );
@@ -136,7 +144,7 @@ function DetectedChips({ response }: { response: NonNullable<ReturnType<typeof u
     <div className="flex flex-wrap items-center gap-1.5">
       <span className="text-xs text-ink-muted">{response.mode === "text" ? "Understood:" : "Looks like:"}</span>
       {chips.map((c) => (
-        <span key={c} className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
+        <span key={c} className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent">
           {c}
         </span>
       ))}

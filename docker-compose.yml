@@ -1,4 +1,4 @@
-# Local full stack: API on :8000, UI on :5173.
+# Local full stack: API on :8000, UI on :5173 (open http://localhost:5173).
 # Put artifacts in backend/artifacts first (Kaggle output, or `make dev-index`).
 services:
   api:
@@ -6,9 +6,13 @@ services:
     environment:
       PORT: "8000"
       ALLOWED_ORIGINS: http://localhost:5173
+      AUTH_ENABLED: "true"
+      SESSION_SECRET: local-dev-only-change-me
+      USERS_DB_PATH: /app/data/users.db
     ports: ["8000:8000"]
     volumes:
       - ./backend/artifacts:/app/artifacts:ro
+      - users-data:/app/data
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
       interval: 15s
@@ -19,10 +23,16 @@ services:
     working_dir: /app
     command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      # The browser calls /api; the Vite dev server proxies it to the api service,
+      # so the session cookie is first-party.
+      VITE_API_BASE_URL: /api
+      API_PROXY_TARGET: http://api:8000
     ports: ["5173:5173"]
     volumes:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
       api: { condition: service_healthy }
+
+volumes:
+  users-data:

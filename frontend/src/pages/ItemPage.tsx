@@ -28,7 +28,7 @@ export function ItemPage() {
       <div className="mx-auto max-w-3xl px-4 py-16">
         {item.error.status === 404 ? (
           <EmptyState title="We couldn't find that item">
-            It may not be part of this catalogue. <Link to="/" className="font-medium text-accent underline">Back to search</Link>
+            It may not be part of this catalogue. <Link to="/app" className="font-medium text-accent underline">Back to search</Link>
           </EmptyState>
         ) : (
           <ErrorState error={item.error} onRetry={item.reload} />
@@ -40,27 +40,27 @@ export function ItemPage() {
   const d = item.data;
   return (
     <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6">
-      <button onClick={() => navigate(-1)} className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink">
+      <button onClick={() => navigate(-1)} className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink">
         <ArrowLeftIcon width={16} height={16} /> Back to results
       </button>
 
       <section className="mt-6 grid gap-8 md:grid-cols-[minmax(0,22rem)_1fr]">
-        <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-card">
+        <div className="card aspect-[3/4] overflow-hidden p-0 shadow-lift">
           {d ? (
-            <img src={imageSrc(d.image_url)} alt={altText(d)} className="h-full w-full object-contain p-4" />
+            <img src={imageSrc(d.image_url)} alt={altText(d)} className="h-full w-full bg-surface-2 object-contain p-5" />
           ) : (
-            <div className="h-full animate-pulse bg-stone-200" />
+            <div className="shimmer h-full" />
           )}
         </div>
         <div>
           {d ? (
             <>
-              <p className="text-sm font-medium uppercase tracking-wide text-accent">{SOURCE_LABEL[d.source] ?? d.source} photo</p>
-              <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight">{capitalise(d.category)}</h1>
-              <dl className="mt-6 grid max-w-md grid-cols-2 gap-x-6 gap-y-4 text-sm">
+              <p className="eyebrow">{SOURCE_LABEL[d.source] ?? d.source} photo</p>
+              <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-ink sm:text-5xl">{capitalise(d.category)}</h1>
+              <dl className="card mt-6 grid max-w-lg grid-cols-2 gap-x-6 gap-y-4 p-5 text-sm">
                 <Meta label="Colour">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className="h-3 w-3 rounded-full border border-stone-300" style={{ background: COLOUR_SWATCH[d.colour] ?? "#ccc" }} />
+                    <span className="h-3 w-3 rounded-full border border-line" style={{ background: COLOUR_SWATCH[d.colour] ?? "#ccc" }} />
                     {capitalise(d.colour)} <span className="text-ink-muted">({percent(d.colour_confidence)} conf.)</span>
                   </span>
                 </Meta>
@@ -75,24 +75,24 @@ export function ItemPage() {
                 scale come from the dataset's annotations.
               </p>
               <div className="mt-6 flex gap-2">
-                <a href="#similar" className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black">
+                <a href="#similar" className="btn-primary">
                   <SparkIcon width={16} height={16} /> Find similar
                 </a>
-                <a href="#look" className="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold hover:border-ink">
+                <a href="#look" className="btn-ghost">
                   <LayersIcon width={16} height={16} /> Complete the look
                 </a>
               </div>
             </>
           ) : (
             <div className="space-y-3">
-              <div className="h-4 w-24 animate-pulse rounded bg-stone-200" />
-              <div className="h-8 w-64 animate-pulse rounded bg-stone-200" />
+              <div className="shimmer h-4 w-24 rounded" />
+              <div className="shimmer h-8 w-64 rounded" />
             </div>
           )}
         </div>
       </section>
 
-      <Panel id="similar" title="Find Similar" subtitle="Nearest neighbours of this item's own CLIP embedding.">
+      <Panel id="similar" title="Find Similar" subtitle="Nearest neighbours of this item's own embedding in the fine-tuned CLIP space.">
         {similar.error ? (
           <ErrorState error={similar.error} onRetry={similar.reload} />
         ) : (
@@ -109,7 +109,7 @@ export function ItemPage() {
           <div className="space-y-8">
             {look.data.groups.map((g) => (
               <div key={g.group}>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-soft">{g.label}</h3>
+                <h3 className="eyebrow mb-3">{g.label}</h3>
                 <Row items={g.items} showReason empty={`No ${g.label.toLowerCase()} available.`} />
               </div>
             ))}
@@ -133,8 +133,8 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
 
 function Panel({ id, title, subtitle, children }: { id: string; title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="mt-14 scroll-mt-24" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className="font-display text-2xl font-semibold tracking-tight">{title}</h2>
+    <section id={id} className="mt-16 scroll-mt-24" aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`} className="font-display text-3xl font-semibold tracking-tight text-ink">{title}</h2>
       <p className="mb-5 mt-1 text-sm text-ink-muted">{subtitle}</p>
       {children}
     </section>

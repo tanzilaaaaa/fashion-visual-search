@@ -33,7 +33,7 @@ def payload_too_large(message: str) -> APIError:
     return APIError(413, "payload_too_large", message)
 
 
-def unauthorized(message: str = "Please sign in to use the demo.") -> APIError:
+def unauthorized(message: str = "Please sign in to continue.") -> APIError:
     return APIError(401, "unauthorized", message)
 
 

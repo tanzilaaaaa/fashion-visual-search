@@ -15,6 +15,8 @@ from typing import Protocol
 import numpy as np
 from PIL import Image
 
+from .adapter import Adapter
+
 log = logging.getLogger(__name__)
 
 
@@ -70,8 +72,9 @@ class EmbeddingService:
     CATEGORY_TEMPLATES = ("a photo of a {}.", "a person wearing a {}.", "a product photo of a {}.")
     COLOUR_TEMPLATES = ("a photo of a {} piece of clothing.", "a {} garment.", "{} colored fabric.")
 
-    def __init__(self, encoder: Encoder, text_cache_size: int = 512):
+    def __init__(self, encoder: Encoder, text_cache_size: int = 512, adapter: Adapter | None = None):
         self.encoder = encoder
+        self.adapter = adapter
         self._cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._cache_size = text_cache_size
         self._lock = threading.Lock()
@@ -83,7 +86,7 @@ class EmbeddingService:
 
     @property
     def model_name(self) -> str:
-        return self.encoder.name
+        return self.encoder.name + (" + fine-tuned adapter" if self.adapter is not None else "")
 
     def encode_text(self, text: str) -> np.ndarray:
         key = " ".join(text.lower().split())
@@ -99,7 +102,13 @@ class EmbeddingService:
         return vec.copy()
 
     def encode_image(self, image: Image.Image) -> np.ndarray:
-        return l2_normalise(self.encoder.encode_images([image]))[0]
+        """Search vector for an image (adapted when a fine-tuned adapter is loaded)."""
+        return self.encode_image_views(image)[1]
+
+    def encode_image_views(self, image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
+        """``(raw, search)``: raw CLIP for zero-shot vs text prompts, search for the index."""
+        raw = l2_normalise(self.encoder.encode_images([image]))[0]
+        return raw, (self.adapter.apply(raw) if self.adapter is not None else raw)
 
     def prototypes(self, kind: str, labels: list[str]) -> np.ndarray:
         """Prompt-ensembled label embeddings, computed once and cached."""

@@ -25,7 +25,7 @@ export function FilterPanel({ vocab, value, onChange, disabled }: Props) {
     return (
       <div className="space-y-3" aria-hidden="true">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-5 animate-pulse rounded bg-stone-200" />
+          <div key={i} className="shimmer h-5 rounded" />
         ))}
       </div>
     );
@@ -34,7 +34,7 @@ export function FilterPanel({ vocab, value, onChange, disabled }: Props) {
   return (
     <fieldset disabled={disabled} className="space-y-6">
       <div className="flex items-center justify-between">
-        <legend className="text-sm font-semibold uppercase tracking-wide text-ink-soft">Filters</legend>
+        <legend className="eyebrow">Filters</legend>
         {active > 0 && (
           <button type="button" onClick={() => onChange({})} className="text-xs font-medium text-accent hover:underline">
             Clear all ({active})
@@ -59,10 +59,10 @@ export function FilterPanel({ vocab, value, onChange, disabled }: Props) {
                       aria-pressed={on}
                       title={`${o.label} (${o.count})`}
                       className={`flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
-                        on ? "border-ink bg-ink text-white" : "border-stone-300 bg-white text-ink-soft hover:border-ink"
+                        on ? "border-accent bg-accent text-on-accent" : "border-line bg-surface text-ink-soft hover:border-accent"
                       }`}
                     >
-                      <span className="h-3 w-3 rounded-full border border-stone-300" style={{ background: COLOUR_SWATCH[o.value] ?? "#ccc" }} />
+                      <span className="h-3 w-3 rounded-full border border-line" style={{ background: COLOUR_SWATCH[o.value] ?? "#ccc" }} />
                       {o.label}
                     </button>
                   );
@@ -79,9 +79,9 @@ export function FilterPanel({ vocab, value, onChange, disabled }: Props) {
                         type="checkbox"
                         checked={value[field]?.includes(o.value) ?? false}
                         onChange={() => toggle(field, o.value)}
-                        className="h-4 w-4 rounded border-stone-400 accent-ink"
+                        className="h-4 w-4 rounded border-line accent-[rgb(var(--accent))]"
                       />
-                      <label htmlFor={id} className="flex flex-1 cursor-pointer justify-between text-ink-soft">
+                      <label htmlFor={id} className="flex flex-1 cursor-pointer justify-between text-ink-soft hover:text-ink">
                         <span>{o.label}</span>
                         <span className="tabular-nums text-ink-muted">{o.count.toLocaleString()}</span>
                       </label>

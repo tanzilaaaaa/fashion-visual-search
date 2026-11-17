@@ -1,7 +1,7 @@
 import type { ScoredItem } from "../api/types";
 import { ResultCard, ResultCardSkeleton } from "./ResultCard";
 
-export const gridClass = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4";
+export const gridClass = "grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4";
 
 export function ResultGrid({ items, onExpand }: { items: ScoredItem[]; onExpand?: (i: ScoredItem) => void }) {
   return (

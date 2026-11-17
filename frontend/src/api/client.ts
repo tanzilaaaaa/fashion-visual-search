@@ -9,15 +9,21 @@ import type {
   RecommendationsResponse,
   SearchResponse,
   SessionResponse,
+  ShowcaseResponse,
   SimilarResponse,
 } from "./types";
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, "");
+/**
+ * The API is reached through a same-origin `/api` proxy (Vite dev server locally,
+ * a Vercel rewrite in production). That keeps the session cookie first-party, so
+ * sign-in works even in browsers that block third-party cookies.
+ */
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30_000,
-  withCredentials: true, // needed for the optional session cookie
+  withCredentials: true,
 });
 
 /** A user-presentable error, normalised from the API's `{error: {code, message}}` body. */
@@ -93,8 +99,10 @@ export const api = {
   filters: () => call<FiltersResponse>(http.get("/filters")),
   health: () => call<HealthResponse>(http.get("/health")),
   evaluation: () => call<EvaluationReport>(http.get("/evaluation")),
+  showcase: (n = 12) => call<ShowcaseResponse>(http.get("/showcase", { params: { n } })),
   me: () => call<SessionResponse>(http.get("/auth/me")),
-  login: (username: string, password: string) =>
-    call<SessionResponse>(http.post("/auth/login", { username, password })),
+  login: (email: string, password: string) => call<SessionResponse>(http.post("/auth/login", { email, password })),
+  register: (name: string, email: string, password: string) =>
+    call<SessionResponse>(http.post("/auth/register", { name, email, password })),
   logout: () => call<SessionResponse>(http.post("/auth/logout")),
 };

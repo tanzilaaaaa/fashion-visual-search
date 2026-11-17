@@ -10,14 +10,14 @@ interface Props {
 export function RankingControls({ value, onChange, disabled }: Props) {
   return (
     <fieldset disabled={disabled} className="space-y-4">
-      <legend className="text-sm font-semibold uppercase tracking-wide text-ink-soft">Ranking</legend>
+      <legend className="eyebrow">Ranking</legend>
       <div>
-        <label htmlFor="topk" className="mb-1 block text-sm font-medium">Results</label>
+        <label htmlFor="topk" className="mb-1 block text-sm font-medium text-ink">Results</label>
         <select
           id="topk"
           value={value.topK}
           onChange={(e) => onChange({ ...value, topK: Number(e.target.value) })}
-          className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-ink focus:outline-none"
+          className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15"
         >
           {[12, 24, 48, 96].map((n) => (
             <option key={n} value={n}>Top {n}</option>
@@ -26,7 +26,7 @@ export function RankingControls({ value, onChange, disabled }: Props) {
       </div>
       <div>
         <div className="mb-1 flex items-baseline justify-between">
-          <label htmlFor="beta" className="text-sm font-medium">Attribute boost</label>
+          <label htmlFor="beta" className="text-sm font-medium text-ink">Attribute boost</label>
           <span className="text-xs tabular-nums text-ink-muted">
             α {value.alpha.toFixed(2)} · β {value.beta.toFixed(2)}
           </span>
@@ -42,7 +42,7 @@ export function RankingControls({ value, onChange, disabled }: Props) {
             const beta = Number(e.target.value);
             onChange({ ...value, beta, alpha: Number((1 - beta).toFixed(2)) });
           }}
-          className="w-full accent-accent"
+          className="w-full accent-[rgb(var(--accent))]"
           aria-describedby="beta-help"
         />
         <p id="beta-help" className="mt-1 text-xs leading-relaxed text-ink-muted">

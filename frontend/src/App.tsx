@@ -1,31 +1,39 @@
-import { Route, Routes } from "react-router-dom";
-import { Header } from "./components/Header";
-import { RequireAuth } from "./context/AuthContext";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AppLayout } from "./layouts/AppLayout";
 import { AboutPage } from "./pages/AboutPage";
+import { AuthPage } from "./pages/AuthPage";
 import { ItemPage } from "./pages/ItemPage";
-import { LoginPage } from "./pages/LoginPage";
+import { LandingPage } from "./pages/LandingPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { SearchPage } from "./pages/SearchPage";
 
 export default function App() {
   return (
-    <div className="min-h-screen">
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2">
+    <>
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow-lift"
+      >
         Skip to content
       </a>
-      <Header />
-      <main id="main">
-        <Routes>
-          <Route path="/" element={<RequireAuth><SearchPage /></RequireAuth>} />
-          <Route path="/item/:id" element={<RequireAuth><ItemPage /></RequireAuth>} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </main>
-      <footer className="border-t border-stone-200 py-6 text-center text-xs text-ink-muted">
-        CLIP ViT-B/32 · FAISS · DeepFashion2 — built for the Polaris School of Technology OJT programme
-      </footer>
-    </div>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/signin" element={<AuthPage mode="signin" />} />
+        <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route path="/login" element={<Navigate to="/signin" replace />} />
+        <Route path="/app" element={<AppLayout />}>
+          <Route index element={<SearchPage />} />
+          <Route path="item/:id" element={<ItemPage />} />
+          <Route path="insights" element={<AboutPage />} />
+        </Route>
+        <Route path="/item/:id" element={<LegacyItemRedirect />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
   );
+}
+
+function LegacyItemRedirect() {
+  const id = window.location.pathname.split("/").pop() ?? "";
+  return <Navigate to={`/app/item/${id}${window.location.hash}`} replace />;
 }

@@ -47,9 +47,8 @@ class Settings(BaseSettings):
     # Security
     rate_limit: str = "60/minute"
     rate_limit_enabled: bool = True
-    auth_enabled: bool = False
-    demo_username: str = "demo"
-    demo_password: str = ""
+    auth_enabled: bool = True
+    users_db_path: Path | None = None
     session_secret: str = "change-me-in-production"
     session_max_age_s: int = 60 * 60 * 8
     cookie_secure: bool = False
@@ -79,6 +78,10 @@ class Settings(BaseSettings):
     @property
     def resolved_evaluation_path(self) -> Path:
         return self.evaluation_path or self.artifacts_dir / "evaluation.json"
+
+    @property
+    def resolved_users_db_path(self) -> Path:
+        return self.users_db_path or BACKEND_DIR / "data" / "users.db"
 
     @property
     def max_upload_bytes(self) -> int:

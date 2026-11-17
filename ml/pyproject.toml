@@ -21,6 +21,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+kaggle = ["kaggle>=1.7", "six"]
 notebooks = ["matplotlib>=3.8", "jupyter"]
 
 [tool.setuptools.packages.find]

@@ -17,8 +17,20 @@ All numbers come from `ml/fvs_ml/evaluate.py`, run by the pipeline. They are wri
 | **Consumer→shop Recall@1/5/10** | Query = consumer ("user") item with `style > 0`; gallery = shop items in the slice; a hit = a gallery item with the same `pair_id` **and** `style` in the top K (the DeepFashion2 retrieval protocol). | Same-category items in random order (what a tag-only catalogue can do) |
 | **Text→category Precision@1/5/10** | 16 natural phrasings, several using synonyms ("blue jeans", "tank top", "denim jacket"); a result is relevant if its category is in the probe's relevant set. | Keyword match of query words against category names |
 | **Complete the Look Hit@10** | For a garment with a compatible partner in the same photo, is the partner in the top 10 suggestions drawn from all slice items of the target categories? | Random pick from the same categories |
+| **Fine-tuning ablation** | The same Recall@K and Precision@K, computed twice on the same slice and index settings: frozen CLIP vectors vs. vectors passed through the fine-tuned adapter (`variants` in `evaluation.json`) | Pretrained CLIP |
 | **Latency** | `backend/scripts/benchmark.py`: mean/p50/p95 for text and image search through the API | PRD budget: 2 s text, 4 s image |
 | **Footprint** | Bytes of `index.faiss`, `metadata.json`, `images/` | Must fit the hosting tier |
+
+## Fine-tuning protocol
+
+* Training pairs come only from the DeepFashion2 **train** split. The evaluation slice is drawn
+  from **validation**, so the two never overlap.
+* 10 % of training pair ids form a **tuning split**. It picks the best epoch (Recall@10) and the
+  residual ratio `r` ∈ {0, 0.2, 0.4, 0.6, 0.8}. The chosen `r` maximises tuning Recall@10, while
+  text-category precision may drop by at most 2 points. Ties go to the better Recall@1, then to
+  the smaller `r`.
+* `evaluation.json → finetune` records the config, pair counts, per-epoch loss and tuning recall,
+  the `r` search and the training time. The Insights page plots them.
 
 ## Caveats
 

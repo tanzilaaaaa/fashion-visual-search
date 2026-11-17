@@ -40,7 +40,9 @@ is detected, or `beta = 0`, `score == similarity`.
 `multipart/form-data`: `file` (JPEG/PNG/WebP, ≤ `MAX_UPLOAD_MB`), plus optional `top_k`,
 `filters` (JSON string), `alpha` and `beta`. The response has the same shape, with
 `mode: "image"` and `inferred` holding CLIP's zero-shot `{category, colour}` guesses and their
-confidence. A guess is used for ranking only when its confidence is ≥ 0.5.
+confidence. A guess is used for ranking only when its confidence is ≥ 0.5. The zero-shot guess
+uses the raw CLIP vector; the search itself uses the fine-tuned adapter's vector when the index
+was built with one.
 
 ## Items
 
@@ -56,11 +58,26 @@ confidence. A guess is used for ranking only when its confidence is ≥ 0.5.
 * `GET /health` → `{status: "ok"|"degraded", model_loaded, index_loaded, item_count, model, startup_error, stats}`
 * `GET /evaluation` → `{evaluation, manifest}`, or 404 if none was generated
 
-## Auth (optional, `AUTH_ENABLED=true`)
+* `GET /showcase?n=12` → `{items: [ItemSummary…]}`: a deterministic, category-diverse sample
+  (shop photos first). It is public and used by the landing page.
 
-`POST /auth/login {username, password}` sets the HttpOnly `fvs_session` cookie.
-`POST /auth/logout` clears it. `GET /auth/me` returns the session. When auth is enabled,
-`/search/*` and `/items/*` return 401 without a valid cookie.
+## Accounts (`AUTH_ENABLED=true`, the default)
+
+| Endpoint | Body | Result |
+|---|---|---|
+| `POST /auth/register` | `{name, email, password}` | **201** + session cookie. 400 `invalid_name` / `invalid_email` / `weak_password`, **409** `email_taken`, 429 after 5/min |
+| `POST /auth/login` | `{email, password}` | 200 + session cookie. **401** `invalid_credentials` (same response whether or not the email exists), 429 after 10/min |
+| `POST /auth/logout` | — | clears the cookie |
+| `GET /auth/me` | — | `{authenticated, auth_enabled, user: {id, name, email} \| null}` |
+
+Passwords: 8–128 characters, at least one letter and one digit. Emails are trimmed and
+lower-cased. The `fvs_session` cookie is HttpOnly, `SameSite=Lax` and HMAC-signed with
+`SESSION_SECRET`, and it expires after `SESSION_MAX_AGE_S` (8 h). Without a valid session for an
+existing account, `/search/*` and `/items/*` return **401** `unauthorized`. `/health`, `/filters`,
+`/images/*`, `/evaluation` and `/showcase` stay public.
+
+The browser reaches the API at `/api/*` on the frontend's own origin (Vite proxy locally, Vercel
+rewrite in production), so the cookie is first-party.
 
 ## Errors
 
@@ -70,9 +87,10 @@ confidence. A guess is used for ranking only when its confidence is ≥ 0.5.
 
 | Status | Codes |
 |---|---|
-| 400 | `empty_query`, `query_too_long`, `unsupported_filter`, `malformed_filters`, `missing_file`, `empty_file`, `unsupported_type`, `invalid_image` |
+| 400 | `empty_query`, `query_too_long`, `unsupported_filter`, `malformed_filters`, `missing_file`, `empty_file`, `unsupported_type`, `invalid_image`, `invalid_name`, `invalid_email`, `weak_password` |
 | 401 | `unauthorized`, `invalid_credentials` |
 | 404 | `not_found` |
+| 409 | `email_taken` |
 | 413 | `payload_too_large` |
 | 422 | `validation_error` (e.g. non-integer `top_k`) |
 | 429 | `rate_limited` |

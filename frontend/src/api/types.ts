@@ -76,10 +76,20 @@ export interface HealthResponse {
   model?: string | null;
 }
 
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
 export interface SessionResponse {
   authenticated: boolean;
-  username?: string | null;
   auth_enabled: boolean;
+  user?: User | null;
+}
+
+export interface ShowcaseResponse {
+  items: ItemSummary[];
 }
 
 export interface RankingOptions {
@@ -104,6 +114,11 @@ export interface EvaluationReport {
     complete_the_look: { queries: number; "clip_hit@10": number | null; "random_hit@10": number | null; note: string };
     footprint: { index_bytes: number; metadata_bytes: number; images_bytes: number };
     build_seconds?: number;
+    variants?: {
+      pretrained: { consumer_to_shop: RecallBlock | null; text_to_image: RecallBlock };
+      finetuned: { consumer_to_shop: RecallBlock | null; text_to_image: RecallBlock };
+    };
+    finetune?: FinetuneReport | { skipped: string };
   } | null;
   manifest: {
     item_count?: number;
@@ -112,5 +127,18 @@ export interface EvaluationReport {
     category_counts?: Record<string, number>;
     colour_counts?: Record<string, number>;
     source_counts?: Record<string, number>;
+    adapter?: { file: string; ratio: number; hidden: number } | null;
   };
+}
+
+export interface FinetuneReport {
+  method: string;
+  loss: string;
+  pairs: { items: number; train_items: number; val_items: number; train_groups: number; val_groups: number };
+  device: string;
+  best_epoch: number;
+  history: { epoch: number; loss: number | null; "val_recall@10": number }[];
+  ratio_search: { ratio: number; "recall@1"?: number | null; "recall@10": number | null; "text_precision@10": number }[];
+  chosen_ratio: number;
+  train_seconds: number;
 }

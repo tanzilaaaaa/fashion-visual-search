@@ -118,6 +118,7 @@ def make_settings(artifacts: Path, **overrides) -> Settings:
     base = dict(
         artifacts_dir=artifacts, load_model_on_startup=False, rate_limit_enabled=False,
         allowed_origins=["http://localhost:5173"], top_k_default=5, max_upload_mb=1.0,
+        auth_enabled=False, users_db_path=artifacts / "users.db", session_secret="test-secret",
         _env_file=None,
     )
     base.update(overrides)

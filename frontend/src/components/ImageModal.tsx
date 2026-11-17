@@ -25,26 +25,26 @@ export function ImageModal({ item, onClose }: { item: ScoredItem | null; onClose
 
   if (!item) return null;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-ink/70 p-4" onClick={onClose} role="presentation">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose} role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={altText(item)}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="relative w-full max-w-lg overflow-hidden rounded-theme border border-line bg-surface shadow-2xl animate-fade-up"
       >
-        <button ref={closeRef} onClick={onClose} className="absolute right-3 top-3 rounded-full bg-white/90 p-2 shadow hover:bg-stone-100" aria-label="Close">
+        <button ref={closeRef} onClick={onClose} className="glass absolute right-3 top-3 rounded-full p-2 text-ink" aria-label="Close">
           <XIcon />
         </button>
-        <img src={imageSrc(item.image_url)} alt={altText(item)} className="max-h-[70vh] w-full bg-stone-100 object-contain" />
+        <img src={imageSrc(item.image_url)} alt={altText(item)} className="max-h-[70vh] w-full bg-surface-2 object-contain" />
         <div className="flex items-center justify-between gap-4 p-4">
           <div>
-            <p className="font-semibold">{capitalise(item.category)}</p>
+            <p className="font-semibold text-ink">{capitalise(item.category)}</p>
             <p className="text-sm text-ink-muted">
               {capitalise(item.colour)} · score {formatScore(item.score)} · similarity {formatScore(item.similarity)}
             </p>
           </div>
-          <Link to={`/item/${item.item_id}`} className="rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white hover:bg-black">
+          <Link to={`/app/item/${item.item_id}`} className="btn-primary px-4 py-2">
             View details
           </Link>
         </div>
