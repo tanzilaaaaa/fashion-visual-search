@@ -156,7 +156,7 @@ def main() -> None:
     push = sub.add_parser("push")
     push.add_argument("--target-items", type=int, default=50_000)
     push.add_argument("--batch-size", type=int, default=512)
-    push.add_argument("--num-workers", type=int, default=4)
+    push.add_argument("--num-workers", type=int, default=8)  # I/O-latency bound on Kaggle input
     push.add_argument("--seed", type=int, default=42)
     push.add_argument("--no-finetune", action="store_true")
     push.add_argument("--ft-epochs", type=int, default=40)

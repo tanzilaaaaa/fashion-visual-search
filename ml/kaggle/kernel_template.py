@@ -66,8 +66,9 @@ def main() -> None:
     from fvs_ml.finetune import FinetuneConfig
     from fvs_ml.pipeline import run
 
-    log.info("torch %s, cuda=%s, device=%s", torch.__version__, torch.cuda.is_available(),
-             torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
+    # Don't touch CUDA here: annotation parsing forks/spawns workers first. The pipeline
+    # logs the device when it loads CLIP.
+    log.info("torch %s", torch.__version__)
 
     # 3. Build: subset → crops → CLIP → adapter → index → evaluation.
     cfg = PipelineConfig(

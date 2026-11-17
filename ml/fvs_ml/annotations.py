@@ -17,13 +17,17 @@ relative to the dataset root — never a bare basename.
 from __future__ import annotations
 
 import json
+import logging
 import os
-from concurrent.futures import ProcessPoolExecutor
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
 
 from .config import CATEGORIES, slug
+
+log = logging.getLogger(__name__)
 
 ITEM_COLUMNS = [
     "item_id", "split", "image_id", "item_index", "image_relpath",
@@ -138,10 +142,17 @@ def load_items(
             annos = annos[:max_images_per_split]
         jobs.extend((str(p), split, image_rel_dir, ".jpg") for p in annos)
 
+    log.info("parsing %d annotation files from %s", len(jobs), sorted(layout))
     rows: list[dict] = []
-    with ProcessPoolExecutor(max_workers=workers) as pool:
-        for chunk in pool.map(_parse_one, jobs, chunksize=512):
+    t0 = time.time()
+    # Reading ~224k small files from a network-mounted dataset (Kaggle) is latency-bound,
+    # not CPU-bound: many threads overlap the waits, and threads avoid fork/spawn issues
+    # in a parent that has already imported torch. JSON parsing itself is cheap.
+    with ThreadPoolExecutor(max_workers=workers or 32) as pool:
+        for i, chunk in enumerate(pool.map(_parse_one, jobs), 1):
             rows.extend(chunk)
+            if i % 20_000 == 0:
+                log.info("parsed %d/%d annotation files (%.0f files/s)", i, len(jobs), i / (time.time() - t0))
 
     return pd.DataFrame(rows, columns=ITEM_COLUMNS)
 
