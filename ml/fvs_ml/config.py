@@ -64,6 +64,7 @@ class PipelineConfig:
     pretrained: str = "openai"
     batch_size: int = 256
     num_workers: int = 2
+    io_workers: int = 32          # threads for reading annotation files (latency-bound on network FS)
     thumb_size: int = 256
     crop_padding: float = 0.06
     min_box_side: int = 32

@@ -61,7 +61,7 @@ def run(
         items = pd.read_parquet(items_cache)
         log.info("loaded %d cached item rows", len(items))
     else:
-        items = load_items(cfg.dataset_root, cfg.splits, max_images_per_split)
+        items = load_items(cfg.dataset_root, cfg.splits, max_images_per_split, workers=cfg.io_workers)
         items.to_parquet(items_cache)
         log.info("parsed %d item rows", len(items))
     items, clean_report = clean_items(items, cfg.min_box_side)

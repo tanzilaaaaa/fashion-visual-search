@@ -67,7 +67,8 @@ def cmd_push(a: argparse.Namespace) -> None:
     user = username()
     settings = {
         "target_items": a.target_items, "batch_size": a.batch_size, "num_workers": a.num_workers,
-        "seed": a.seed, "finetune": not a.no_finetune, "ft_epochs": a.ft_epochs, "ft_max_items": a.ft_max_items,
+        "seed": a.seed, "io_workers": a.io_workers,
+        "finetune": not a.no_finetune, "ft_epochs": a.ft_epochs, "ft_max_items": a.ft_max_items,
     }
     src = (HERE / "kernel_template.py").read_text()
     src = src.replace("__BUNDLE__", bundle()).replace("__SETTINGS__", json.dumps(settings))
@@ -156,7 +157,8 @@ def main() -> None:
     push = sub.add_parser("push")
     push.add_argument("--target-items", type=int, default=50_000)
     push.add_argument("--batch-size", type=int, default=512)
-    push.add_argument("--num-workers", type=int, default=8)  # I/O-latency bound on Kaggle input
+    push.add_argument("--num-workers", type=int, default=24)  # DataLoader workers; Kaggle input is latency-bound
+    push.add_argument("--io-workers", type=int, default=128)  # annotation-reading threads
     push.add_argument("--seed", type=int, default=42)
     push.add_argument("--no-finetune", action="store_true")
     push.add_argument("--ft-epochs", type=int, default=40)

@@ -74,7 +74,7 @@ def main() -> None:
     cfg = PipelineConfig(
         dataset_root=DATASET, output_dir=OUT, work_dir=CACHE,
         target_items=SETTINGS["target_items"], batch_size=SETTINGS["batch_size"],
-        num_workers=SETTINGS["num_workers"], seed=SETTINGS["seed"],
+        num_workers=SETTINGS["num_workers"], io_workers=SETTINGS.get("io_workers", 32), seed=SETTINGS["seed"],
     )
     ft_cfg = FinetuneConfig(epochs=SETTINGS["ft_epochs"], max_items=SETTINGS["ft_max_items"], seed=SETTINGS["seed"])
     compat = CODE / "compatibility.json"

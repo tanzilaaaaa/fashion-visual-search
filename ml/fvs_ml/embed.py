@@ -108,7 +108,11 @@ def encode_items(
             continue
 
         ds = CropDataset(items.iloc[start:end], dataset_root, preprocess, padding, thumb_dir, thumb_size)
-        loader = DataLoader(ds, batch_size=batch_size, num_workers=num_workers, shuffle=False)
+        loader = DataLoader(
+            ds, batch_size=batch_size, num_workers=num_workers, shuffle=False,
+            # Many workers with deep prefetch hide per-file read latency on network storage.
+            prefetch_factor=4 if num_workers else None, persistent_workers=False,
+        )
         shard_vec = np.zeros((end - start, model.visual.output_dim), dtype=np.float32)
         shard_ok = np.zeros(end - start, dtype=bool)
         for pixels, idx, ok in loader:
