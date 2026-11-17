@@ -1,0 +1,11 @@
+# API runtime (no deep-learning deps — enough for tests and CI)
+fastapi==0.163.1
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
+pydantic-settings==2.16.3
+python-multipart==0.0.34
+slowapi==0.1.10
+itsdangerous==2.2.0
+numpy==2.4.6
+faiss-cpu==1.16.0
+pillow==13.0.0

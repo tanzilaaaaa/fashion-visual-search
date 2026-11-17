@@ -1,0 +1,19 @@
+[project]
+name = "fvs-backend"
+version = "1.0.0"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["clip: tests that load the real CLIP model (slow, needs weights)"]
+addopts = "-m 'not clip'"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+extend-ignore = ["B905"]
+ignore = ["B008"]  # FastAPI's Depends()/Query() defaults

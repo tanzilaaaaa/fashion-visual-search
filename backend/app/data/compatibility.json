@@ -1,0 +1,15 @@
+{
+  "_comment": "Hand-authored outfit compatibility over the 13 DeepFashion2 categories. DeepFashion2 has no shoes or bags, so pairings stay within garments.",
+  "groups": {
+    "tops": ["short_sleeve_top", "long_sleeve_top", "vest", "sling"],
+    "bottoms": ["trousers", "shorts", "skirt"],
+    "outerwear": ["short_sleeve_outwear", "long_sleeve_outwear"],
+    "dresses": ["short_sleeve_dress", "long_sleeve_dress", "vest_dress", "sling_dress"]
+  },
+  "pairs": {
+    "tops": ["bottoms", "outerwear"],
+    "bottoms": ["tops", "outerwear"],
+    "outerwear": ["tops", "bottoms", "dresses"],
+    "dresses": ["outerwear"]
+  }
+}

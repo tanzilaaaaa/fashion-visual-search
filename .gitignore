@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+work/
+processed/
+
+# Index artifacts are DeepFashion2-derived and never committed (licence: no redistribution)
+backend/artifacts/*
+!backend/artifacts/.gitkeep
+*.tar
+*.faiss
+
+# Node
+node_modules/
+frontend/dist/
+
+# Env & OS
+.env
+.env.local
+.DS_Store
+.ipynb_checkpoints/
