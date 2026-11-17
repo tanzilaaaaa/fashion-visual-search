@@ -83,7 +83,9 @@ def main() -> None:
     # 4. Package. Thousands of small output files download slowly, so ship a single tar and
     #    delete everything else from /kaggle/working.
     with tarfile.open(WORK / "fvs_artifacts.tar", "w") as tf:
-        for name in ("index.faiss", "metadata.json", "manifest.json", "evaluation.json", "adapter.npz", "images"):
+        names = ("index.faiss", "metadata.json", "manifest.json", "evaluation.json", "adapter.npz",
+                 "text_index.faiss", "images")
+        for name in names:
             if (OUT / name).exists():
                 tf.add(OUT / name, arcname=name)
     summary = {

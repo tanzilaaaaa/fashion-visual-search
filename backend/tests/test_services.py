@@ -178,3 +178,58 @@ def test_container_degrades_when_manifest_expects_missing_adapter(artifacts):
     (artifacts / "manifest.json").write_text(json.dumps({"item_count": 24, "adapter": {"file": "adapter.npz"}}))
     c = build_container(make_settings(artifacts), encoder=FakeEncoder())
     assert not c.ready and c.startup_error == "FileNotFoundError"
+
+
+def test_dual_index_routes_text_to_text_index_and_images_to_main(artifacts):
+    import json
+
+    import faiss
+
+    from app.container import build_container
+
+    items, vecs = catalogue()
+    # Text index = the same catalogue but with the category axes swapped for two
+    # categories, so we can tell which index answered.
+    swapped = vecs.copy()
+    swapped[:, [0, 1]] = swapped[:, [1, 0]]
+    ti = faiss.IndexFlatIP(vecs.shape[1])
+    ti.add(np.ascontiguousarray(swapped))
+    faiss.write_index(ti, str(artifacts / "text_index.faiss"))
+    (artifacts / "manifest.json").write_text(json.dumps({"item_count": 24, "text_index": {"file": "text_index.faiss"}}))
+    c = build_container(make_settings(artifacts), encoder=FakeEncoder())
+    assert c.ready and c.search.text_index is not None
+    out = c.search.search_text("trousers", top_k=3, filters={}, weights=None)
+    # "trousers" points at axis 1; in the swapped text index axis 1 belongs to tops.
+    assert {c.metadata.get(r.position)["category_key"] for r in out.items} == {"short_sleeve_top"}
+    img = c.search.search_image(Image.new("RGB", (8, 8), (200, 0, 0)), top_k=3, filters={})
+    assert {c.metadata.get(r.position)["category_key"] for r in img.items} == {"long_sleeve_dress"}
+
+
+def test_misaligned_text_index_degrades(artifacts):
+    import json
+
+    import faiss
+
+    from app.container import build_container
+
+    small = faiss.IndexFlatIP(16)
+    small.add(np.eye(16, dtype=np.float32)[:3])
+    faiss.write_index(small, str(artifacts / "text_index.faiss"))
+    (artifacts / "manifest.json").write_text(json.dumps({"item_count": 24, "text_index": {"file": "text_index.faiss"}}))
+    c = build_container(make_settings(artifacts), encoder=FakeEncoder())
+    assert not c.ready and c.startup_error == "ValueError"
+
+
+def test_index_search_is_safe_from_worker_threads():
+    """Regression: on macOS a 50k index searched from FastAPI's threadpool segfaulted,
+    because FAISS went multi-threaded next to torch's OpenMP runtime."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    rng = np.random.default_rng(0)
+    vecs = l2_normalise(rng.normal(size=(30_000, 64)).astype(np.float32))
+    index = faiss.IndexFlatIP(64)
+    index.add(vecs)
+    svc = IndexService(index)
+    with ThreadPoolExecutor(4) as ex:
+        results = list(ex.map(lambda i: svc.search(vecs[i], 10)[1][0], range(16)))
+    assert results == list(range(16))

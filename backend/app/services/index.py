@@ -7,6 +7,8 @@ from pathlib import Path
 import faiss
 import numpy as np
 
+from .. import _platform
+
 
 class IndexService:
     def __init__(self, index: faiss.Index):
@@ -34,6 +36,8 @@ class IndexService:
         """
         if self.size == 0 or k <= 0:
             return np.empty(0, np.float32), np.empty(0, np.int64)
+        if _platform.FAISS_SINGLE_THREAD:
+            faiss.omp_set_num_threads(1)  # per-thread setting; this may be a threadpool worker
         query = np.ascontiguousarray(vector.reshape(1, -1), dtype=np.float32)
         if allowed is None:
             k = min(k, self.size)

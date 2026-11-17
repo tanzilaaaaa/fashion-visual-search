@@ -19,7 +19,7 @@ user accounts (sign up / sign in) and four switchable themes.
 | **Vector search** | FAISS `IndexFlatIP` over L2-normalised vectors (exact cosine) |
 | **Data** | DeepFashion2 (Kaggle mirror `thusharanair/deepfashion2-original-with-dataframes`) |
 | **Training / indexing** | Kaggle T4 GPU, driven from this repo through the Kaggle API (`make kaggle-build`) |
-| **Tests** | 72 backend + 3 real-CLIP + 18 pipeline (pytest) · 21 frontend (Vitest + RTL) |
+| **Tests** | 75 backend + 3 real-CLIP + 18 pipeline (pytest) · 21 frontend (Vitest + RTL) |
 
 ---
 
@@ -181,6 +181,18 @@ on a held-out validation slice, against a same-category baseline and against pre
 (the fine-tuning ablation). It also reports text→category **Precision@K** against a keyword
 baseline, a Complete-the-Look co-occurrence hit rate, latency and footprint. The Insights page
 renders the report. Method and caveats: [docs/EVALUATION.md](docs/EVALUATION.md).
+
+Real build results (50k catalogue; 1,508 held-out street-photo queries vs. 4,782 shop items):
+
+| Street photo → shop item | R@1 | R@5 | R@10 |
+|---|---|---|---|
+| Same-category baseline | 1.6 % | 8.4 % | 14.8 % |
+| Pretrained CLIP | 11.6 % | 20.7 % | 25.0 % |
+| **CLIP + fine-tuned adapter** | **45.0 %** | **64.3 %** | **73.1 %** |
+
+Text search (16 natural phrasings): pretrained CLIP P@10 80.6 % vs. 37.5 % for keyword matching.
+In the adapted space it is 65.0 %, which is why fine-tuned builds also ship a pretrained-space
+**text index** (dual index).
 
 ## Deviations from the PRD (and why)
 

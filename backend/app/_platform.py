@@ -8,7 +8,12 @@ unaffected, so this is a no-op there.
 import os
 import sys
 
-if sys.platform == "darwin":
+# omp_set_num_threads() only applies to the *calling* thread, so FastAPI's threadpool
+# workers must pin FAISS themselves (see IndexService.search). Large indexes are where
+# FAISS goes parallel, which is when the duplicate runtimes segfault.
+FAISS_SINGLE_THREAD = sys.platform == "darwin"
+
+if FAISS_SINGLE_THREAD:
     os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
     try:
         import torch  # noqa: F401  (must be imported before faiss)

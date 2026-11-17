@@ -76,6 +76,10 @@ def build_container(settings: Settings, encoder: Encoder | None = None) -> Conta
             adapter = Adapter.from_npz(adapter_path)
             if adapter.dim != c.index.dim:
                 raise ValueError(f"adapter dim {adapter.dim} != index dim {c.index.dim}")
+        text_index = None
+        text_info = (c.manifest or {}).get("text_index")
+        if text_info:
+            text_index = IndexService.load(artifacts / text_info.get("file", "text_index.faiss"))
 
         if encoder is None and settings.load_model_on_startup:
             t = time.perf_counter()
@@ -89,6 +93,7 @@ def build_container(settings: Settings, encoder: Encoder | None = None) -> Conta
                 c.embedding, c.index, c.metadata,
                 RankingWeights(settings.rank_alpha, settings.rank_beta),
                 settings.candidate_multiplier,
+                text_index=text_index,
             )
             c.recommendation = RecommendationService(
                 c.search, CompatibilityMap.load(settings.compatibility_path)

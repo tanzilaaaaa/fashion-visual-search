@@ -23,7 +23,7 @@ import numpy as np
 from . import evaluate as ev
 from .annotations import load_items
 from .attributes import colour_prototypes, tag_colours
-from .build_index import write_artifacts
+from .build_index import write_artifacts, write_text_index
 from .clean import clean_items
 from .config import CATEGORIES, PipelineConfig
 from .embed import encode_items, encode_texts, load_clip
@@ -52,7 +52,8 @@ def run(
     t0 = time.time()
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
-    (cfg.output_dir / "adapter.npz").unlink(missing_ok=True)  # never ship a stale adapter
+    for stale in ("adapter.npz", "text_index.faiss"):  # never ship artifacts from an older build
+        (cfg.output_dir / stale).unlink(missing_ok=True)
 
     # 1–2. Annotations → clean item table (cached between runs).
     items_cache = cfg.work_dir / f"items_{max_images_per_split or 'all'}.parquet"
@@ -100,7 +101,10 @@ def run(
     subset = subset.assign(colour=colours, colour_confidence=conf)
 
     # 8. Persist artifacts. The index stores the vectors the API will search with.
+    # Dual index: photos search the adapted space, text searches the pretrained space.
+    text_index_info = write_text_index(vectors, cfg.output_dir) if adapter is not None else None
     manifest = write_artifacts(subset, serve(vectors), cfg.output_dir, {
+        "text_index": text_index_info,
         "adapter": (
             {"file": "adapter.npz", "ratio": float(adapter["ratio"]), "hidden": int(adapter["W1"].shape[0])}
             if adapter is not None else None
@@ -129,7 +133,8 @@ def run(
         )
         eval_slice, ev_vecs = eval_slice[ev_ok].reset_index(drop=True), ev_vecs[ev_ok]
         c2s = ev.consumer_to_shop(eval_slice, serve(ev_vecs), cfg.seed)
-        t2i = ev.text_to_image(subset, serve(vectors), text_encoder, seed=cfg.seed)
+        # Text queries are served from the pretrained-space text index (see write_text_index).
+        t2i = ev.text_to_image(subset, vectors, text_encoder, seed=cfg.seed)
         report = {
             "dataset": "DeepFashion2",
             "model": f"{cfg.model_name} ({cfg.pretrained})" + (" + fine-tuned adapter" if adapter is not None else ""),
@@ -148,10 +153,12 @@ def run(
         if adapter is not None:
             # Ablation on the same held-out slice: frozen CLIP vs CLIP + adapter.
             pre_c2s = ev.consumer_to_shop(eval_slice, ev_vecs, cfg.seed)
-            pre_t2i = ev.text_to_image(subset, vectors, text_encoder, seed=cfg.seed)
+            ft_t2i = ev.text_to_image(subset, serve(vectors), text_encoder, seed=cfg.seed)
             report["variants"] = {
-                "pretrained": {"consumer_to_shop": pre_c2s.get("clip"), "text_to_image": pre_t2i["clip"]},
-                "finetuned": {"consumer_to_shop": c2s.get("clip"), "text_to_image": t2i["clip"]},
+                "pretrained": {"consumer_to_shop": pre_c2s.get("clip"), "text_to_image": t2i["clip"]},
+                "finetuned": {"consumer_to_shop": c2s.get("clip"), "text_to_image": ft_t2i["clip"]},
+                "served": {"consumer_to_shop": c2s.get("clip"), "text_to_image": t2i["clip"],
+                           "note": "dual index: photos → fine-tuned space, text → pretrained space"},
             }
         with open(cfg.output_dir / "evaluation.json", "w", encoding="utf-8") as fh:
             json.dump(report, fh, indent=2)

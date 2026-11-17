@@ -209,15 +209,22 @@ function FinetuneSection({ ev, ft }: { ev: Ev; ft: FinetuneReport | null }) {
             />
           </Card>
         )}
-        <Card title="Text query → right category, Precision@K" note="Checks that the adapter kept image vectors aligned with CLIP's text space.">
+        <Card
+          title="Text query → right category, Precision@K"
+          note={
+            v.served
+              ? "The adapter specialises the image space for photo matching and gives up some text alignment, so text queries are served from a second, pretrained-space index (dual index)."
+              : "The trade-off: the adapter specialises the image space for photo→photo matching and gives up some text alignment."
+          }
+        >
           <GroupedBars
-            clipLabel="Fine-tuned adapter"
-            baselineLabel="Pretrained CLIP"
-            rows={[1, 5, 10].map((k) => ({
-              label: `P@${k}`,
-              clip: v.finetuned.text_to_image[`precision@${k}`] ?? 0,
-              baseline: v.pretrained.text_to_image[`precision@${k}`] ?? 0,
-            }))}
+            clipLabel={v.served ? "Served: pretrained text index" : "Fine-tuned adapter"}
+            baselineLabel={v.served ? "Adapter space only" : "Pretrained CLIP"}
+            rows={[1, 5, 10].map((k) =>
+              v.served
+                ? { label: `P@${k}`, clip: v.served.text_to_image[`precision@${k}`] ?? 0, baseline: v.finetuned.text_to_image[`precision@${k}`] ?? 0 }
+                : { label: `P@${k}`, clip: v.finetuned.text_to_image[`precision@${k}`] ?? 0, baseline: v.pretrained.text_to_image[`precision@${k}`] ?? 0 },
+            )}
           />
         </Card>
       </div>

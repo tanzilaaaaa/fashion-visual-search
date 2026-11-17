@@ -117,6 +117,7 @@ export interface EvaluationReport {
     variants?: {
       pretrained: { consumer_to_shop: RecallBlock | null; text_to_image: RecallBlock };
       finetuned: { consumer_to_shop: RecallBlock | null; text_to_image: RecallBlock };
+      served?: { consumer_to_shop: RecallBlock | null; text_to_image: RecallBlock; note?: string };
     };
     finetune?: FinetuneReport | { skipped: string };
   } | null;

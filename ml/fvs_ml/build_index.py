@@ -24,6 +24,16 @@ def build_flat_ip_index(vectors: np.ndarray) -> faiss.Index:
     return index
 
 
+def write_text_index(vectors: np.ndarray, output_dir: Path, name: str = "text_index.faiss") -> dict:
+    """Second, position-aligned index of *pretrained* CLIP vectors for text queries.
+
+    Used when the main index holds fine-tuned (adapter) vectors: the adapter is trained
+    for photo→photo matching, while text↔image alignment is best in the original space.
+    """
+    faiss.write_index(build_flat_ip_index(vectors), str(Path(output_dir) / name))
+    return {"file": name, "space": "pretrained CLIP", "purpose": "text queries"}
+
+
 def item_records(items: pd.DataFrame) -> list[dict]:
     """Position-ordered metadata. Record ``i`` describes FAISS vector ``i``."""
     # Items photographed together are a real "worn with" signal for Complete the Look.

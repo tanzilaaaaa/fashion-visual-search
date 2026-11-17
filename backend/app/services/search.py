@@ -61,11 +61,17 @@ class SearchService:
         metadata: MetadataService,
         default_weights: RankingWeights,
         candidate_multiplier: int = 4,
+        text_index: IndexService | None = None,
     ):
         if index.size != len(metadata):
             raise ValueError(f"index has {index.size} vectors but metadata has {len(metadata)} items")
+        if text_index is not None and (text_index.size != index.size or text_index.dim != index.dim):
+            raise ValueError("text index is not aligned with the image index")
         self.embedding = embedding
         self.index = index
+        # Dual index: when the image index holds fine-tuned (adapted) vectors, text queries
+        # search the pretrained CLIP space instead, where text↔image alignment is best.
+        self.text_index = text_index
         self.metadata = metadata
         self.default_weights = default_weights
         self.candidate_multiplier = candidate_multiplier
@@ -77,7 +83,8 @@ class SearchService:
         t0 = time.perf_counter()
         vector = self.embedding.encode_text(query)
         detected = parse_query(query)
-        out = self.rank(vector, top_k, filters, detected, weights or self.default_weights)
+        out = self.rank(vector, top_k, filters, detected, weights or self.default_weights,
+                        index=self.text_index or self.index)
         out.latency_ms = (time.perf_counter() - t0) * 1000
         return out
 
@@ -126,6 +133,7 @@ class SearchService:
         weights: RankingWeights,
         exclude: set[int] | None = None,
         allowed: np.ndarray | None = None,
+        index: IndexService | None = None,
     ) -> SearchOutcome:
         """Retrieve candidates from FAISS and order them by the blended final score."""
         exclude = exclude or set()
@@ -137,7 +145,7 @@ class SearchService:
         use_attributes = targets.has_attributes and weights.beta > 0
         # Over-fetch when re-ranking so attribute matches outside the raw top-k can rise.
         n_candidates = top_k * (self.candidate_multiplier if use_attributes else 1) + len(exclude)
-        scores, positions = self.index.search(vector, n_candidates, filtered)
+        scores, positions = (index or self.index).search(vector, n_candidates, filtered)
 
         ranked: list[RankedItem] = []
         for sim, pos in zip(scores.tolist(), positions.tolist()):

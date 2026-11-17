@@ -21,6 +21,42 @@ All numbers come from `ml/fvs_ml/evaluate.py`, run by the pipeline. They are wri
 | **Latency** | `backend/scripts/benchmark.py`: mean/p50/p95 for text and image search through the API | PRD budget: 2 s text, 4 s image |
 | **Footprint** | Bytes of `index.faiss`, `metadata.json`, `images/` | Must fit the hosting tier |
 
+## Results: real build (Kaggle T4, 17 Nov 2026)
+
+* **Catalogue:** 50,000 category-balanced DeepFashion2 garments. Sling (2,232) and short-sleeve
+  outwear (657) are short because the dataset has few of them.
+* **Evaluation slice:** 6,688 held-out validation items, giving 1,508 street-photo queries
+  against a gallery of 4,782 shop items.
+* **Fine-tuning data:** 60,008 pair items (5,700 training groups), 40 epochs, 26 s on the GPU.
+  The best epoch was 33, and `r = 0.6` was chosen.
+
+| Street photo → shop item | Recall@1 | Recall@5 | Recall@10 |
+|---|---|---|---|
+| Same-category baseline | 1.6 % | 8.4 % | 14.8 % |
+| Pretrained CLIP ViT-B/32 | 11.6 % | 20.7 % | 25.0 % |
+| **CLIP + fine-tuned adapter** | **45.0 %** | **64.3 %** | **73.1 %** |
+
+| Text query → right category (16 probes) | P@1 | P@5 | P@10 |
+|---|---|---|---|
+| Keyword baseline | 37.5 % | 37.5 % | 37.5 % |
+| Pretrained CLIP | 87.5 % | 85.0 % | 80.6 % |
+| Fine-tuned adapter space | 75.0 % | 70.0 % | 65.0 % |
+
+* **Complete the Look Hit@10:** 24.8 % vs. 0.3 % for random picks from the same categories.
+* **Footprint:** index 102 MB, metadata 16 MB, thumbnails 370 MB.
+* **Build time:** 113 minutes. About 70 of those went on reading ~224k annotation files from
+  Kaggle's network-mounted input.
+
+**Reading the results.** Fine-tuning roughly triples exact-garment retrieval from street photos.
+That is the task CLIP was never trained for, and the one the adapter targets. The cost is text
+alignment: text precision drops 15 points in the adapted space. It is still far above the keyword
+baseline, but the tuning-split guard didn't catch the drop. The guard uses category prompts over
+the tuning pairs, which weren't representative of the 16 natural-language probes. The fix is a
+**dual index**: photos search the adapted space and text searches the pretrained space. That
+keeps both 73 % street→shop Recall@10 and ~81 % text P@10. The pipeline now writes
+`text_index.faiss` for every fine-tuned build, and the backend routes text queries to it when it
+is present.
+
 ## Fine-tuning protocol
 
 * Training pairs come only from the DeepFashion2 **train** split. The evaluation slice is drawn
