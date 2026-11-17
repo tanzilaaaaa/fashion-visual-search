@@ -90,7 +90,14 @@ def cmd_push(a: argparse.Namespace) -> None:
             "kernel_sources": [],
             "model_sources": [],
         }, indent=2))
-        print(kaggle("kernels", "push", "-p", str(tmp), "--accelerator", a.accelerator))
+        out = kaggle("kernels", "push", "-p", str(tmp), "--accelerator", a.accelerator)
+    print(out.strip())
+    # The CLI exits 0 even when the server rejects the push (e.g. GPU session limit).
+    if "error" in out.lower() or "successfully pushed" not in out.lower():
+        raise SystemExit(
+            "Push was rejected by Kaggle. If it mentions the GPU session limit, stop running "
+            f"sessions at https://www.kaggle.com/code/{user}/{a.slug} (Edit → Stop session) and retry."
+        )
     print(f"Pushed {user}/{a.slug} with {settings}")
 
 
