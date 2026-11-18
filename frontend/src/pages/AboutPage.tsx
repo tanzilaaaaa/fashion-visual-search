@@ -10,7 +10,7 @@ const PIPELINE = [
   ["Crop", "Each garment is cut from its bounding box with OpenCV, so one vector describes one garment."],
   ["CLIP ViT-B/32", "Frozen OpenAI weights encode every crop into a 512-d vector; text lands in the same space."],
   ["Fine-tune", "A residual adapter is trained on consumer↔shop pairs with a contrastive loss + text alignment."],
-  ["FAISS", "Exact cosine search (IndexFlatIP over unit vectors), filtered inside the index with ID selectors."],
+  ["FAISS", "Two aligned exact indexes: photos search the fine-tuned space, text searches pretrained CLIP."],
   ["Rank", "Final = α·similarity + β·attribute match, then Find Similar and Complete the Look."],
 ];
 
