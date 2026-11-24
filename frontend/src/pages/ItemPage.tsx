@@ -2,7 +2,9 @@ import { useEffect } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api, imageSrc } from "../api/client";
 import type { ScoredItem } from "../api/types";
-import { ArrowLeftIcon, LayersIcon, SparkIcon } from "../components/Icons";
+import { CollectionMenu } from "../components/CollectionMenu";
+import { ArrowLeftIcon, HeartIcon, LayersIcon, SparkIcon } from "../components/Icons";
+import { useAccount } from "../context/AccountContext";
 import { ResultCard, ResultCardSkeleton } from "../components/ResultCard";
 import { EmptyState, ErrorState } from "../components/States";
 import { useAsync } from "../hooks/useAsync";
@@ -74,7 +76,11 @@ export function ItemPage() {
                 Colour is inferred zero-shot by CLIP — DeepFashion2 doesn't label colour. Category, viewpoint, occlusion and
                 scale come from the dataset's annotations.
               </p>
-              <div className="mt-6 flex gap-2">
+              <div className="mt-6 flex flex-wrap gap-2">
+                <ItemSaveButton itemId={d.item_id} />
+                <CollectionMenu itemId={d.item_id} />
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <a href="#similar" className="btn-primary">
                   <SparkIcon width={16} height={16} /> Find similar
                 </a>
@@ -156,5 +162,16 @@ function Row({ items, loading, showReason, empty }: { items?: ScoredItem[]; load
         <li key={it.item_id}><ResultCard item={it} showReason={showReason} compact /></li>
       ))}
     </ul>
+  );
+}
+
+function ItemSaveButton({ itemId }: { itemId: string }) {
+  const { enabled, isFavorite, toggleFavorite } = useAccount();
+  if (!enabled) return null;
+  const saved = isFavorite(itemId);
+  return (
+    <button type="button" aria-pressed={saved} onClick={() => void toggleFavorite(itemId)} className={saved ? "btn-primary" : "btn-ghost"}>
+      <HeartIcon width={16} height={16} filled={saved} /> {saved ? "Saved" : "Save"}
+    </button>
   );
 }

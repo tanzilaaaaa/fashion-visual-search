@@ -5,6 +5,7 @@ import { AuthPage } from "./pages/AuthPage";
 import { ItemPage } from "./pages/ItemPage";
 import { LandingPage } from "./pages/LandingPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { SearchPage } from "./pages/SearchPage";
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
           <Route index element={<SearchPage />} />
           <Route path="item/:id" element={<ItemPage />} />
           <Route path="insights" element={<AboutPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
         <Route path="/item/:id" element={<LegacyItemRedirect />} />
         <Route path="*" element={<NotFoundPage />} />

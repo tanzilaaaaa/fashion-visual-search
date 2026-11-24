@@ -56,7 +56,9 @@ sequenceDiagram
 |---|---|---|
 | `EmbeddingService` | Wraps an `Encoder` (CLIP or test fake); unit-norm text/image vectors; `(raw, search)` image views; zero-shot prototypes | search or ranking |
 | `Adapter` | Loads `adapter.npz`; numpy forward pass identical to training (tanh-GELU) | anything else |
-| `UserStore` | SQLite accounts; scrypt hashing; constant-time verify; timing-equalised unknown-email path | sessions or HTTP |
+| `UserStore` | SQLite accounts; scrypt hashing; constant-time verify; timing-equalised unknown-email path; email, password and delete | sessions or HTTP |
+| `ProfileStore` | Profile info, interests, favorites, collections, search history; every row scoped by `user_id`, cascades from `users` | HTTP or ranking |
+| `for_user` (recommendation.py) | "For you": favorites taste vector → photo index; interests sentence → text index; reasons; no repeats | storage |
 | `IndexService` | FAISS search (optionally restricted with an ID selector) and vector reconstruction | metadata |
 | `MetadataService` | position ⇄ item, filter vocabulary, filter → positions; detects index/lookup drift at load | similarity |
 | `SearchService` | embed → retrieve → metadata → filter → rank; owns final ordering | HTTP concerns |

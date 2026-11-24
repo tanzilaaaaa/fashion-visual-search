@@ -14,8 +14,9 @@ from ...container import Container
 from ...schemas.api import Filters, Ranking, SearchResponse, TextSearchRequest
 from ...services.metadata import UnknownFilterValue
 from ...services.search import RankingWeights, SearchOutcome, SearchService
+from ...services.users import User
 from .. import serializers
-from ..deps import get_container, get_search, require_session
+from ..deps import current_user, get_container, get_search, require_session
 from ..errors import APIError, bad_request, payload_too_large
 from ..limiter import limiter, search_limit
 
@@ -65,6 +66,7 @@ async def search_text(
     body: TextSearchRequest,
     c: Container = Depends(get_container),
     search: SearchService = Depends(get_search),
+    user: User | None = Depends(current_user),
 ):
     query = body.query.strip()
     if not query:
@@ -78,6 +80,9 @@ async def search_text(
         )
     except UnknownFilterValue as exc:
         raise bad_request(str(exc), "unsupported_filter") from exc
+    if user is not None:
+        # Synced search history: successful text queries follow the account across devices.
+        await run_in_threadpool(c.profiles.record_search, user.id, query)
     return _response("text", out, search, query)
 
 

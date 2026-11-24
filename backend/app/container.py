@@ -14,6 +14,7 @@ from .services.adapter import Adapter
 from .services.embedding import ClipEncoder, EmbeddingService, Encoder
 from .services.index import IndexService
 from .services.metadata import MetadataService
+from .services.profile import ProfileStore
 from .services.recommendation import CompatibilityMap, RecommendationService
 from .services.search import RankingWeights, SearchService
 from .services.users import UserStore
@@ -27,6 +28,7 @@ class Container:
     stats: RequestStats
     signer: SessionSigner
     users: UserStore
+    profiles: ProfileStore
     embedding: EmbeddingService | None = None
     index: IndexService | None = None
     metadata: MetadataService | None = None
@@ -56,6 +58,7 @@ def build_container(settings: Settings, encoder: Encoder | None = None) -> Conta
         stats=RequestStats(),
         signer=SessionSigner(settings.session_secret, settings.session_max_age_s),
         users=UserStore(settings.resolved_users_db_path),
+        profiles=ProfileStore(settings.resolved_users_db_path),
     )
     artifacts = settings.resolved_index_path.parent
     c.manifest = _read_json(artifacts / "manifest.json")

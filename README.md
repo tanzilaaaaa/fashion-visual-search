@@ -6,7 +6,8 @@ and a **FAISS** index returns the nearest items in milliseconds. A small **resid
 fine-tuned on DeepFashion2 consumer↔shop pairs**, specialises the frozen CLIP image space for
 street-photo→shop matching. On top of retrieval: category and attribute filters, a blended
 ranking score, **Find Similar** and **Complete the Look**. The app has a landing page, real
-user accounts (sign up / sign in) and four switchable themes.
+user accounts (sign up / sign in), a **profile** with favorites, collections, interests,
+synced search history and personal **"For you" recommendations**, and four switchable themes.
 
 > OJT project · Polaris School of Technology · Multimodal AI track
 > Tanzila Tahreem (ms240410700021) · Mentor: Chennaveer Jogur · PRD v2.0
@@ -19,7 +20,7 @@ user accounts (sign up / sign in) and four switchable themes.
 | **Vector search** | FAISS `IndexFlatIP` over L2-normalised vectors (exact cosine) |
 | **Data** | DeepFashion2 (Kaggle mirror `thusharanair/deepfashion2-original-with-dataframes`) |
 | **Training / indexing** | Kaggle T4 GPU, driven from this repo through the Kaggle API (`make kaggle-build`) |
-| **Tests** | 75 backend + 3 real-CLIP + 18 pipeline (pytest) · 21 frontend (Vitest + RTL) |
+| **Tests** | 102 backend + 3 real-CLIP + 18 pipeline (pytest) · 27 frontend (Vitest + RTL) |
 
 ---
 
@@ -129,6 +130,7 @@ form. The CLI also runs anywhere:
 | `GET /evaluation` | Offline evaluation report (incl. fine-tuning ablation) + manifest |
 | `GET /showcase` | Category-diverse public sample for the landing page |
 | `POST /auth/register` · `/auth/login` · `/auth/logout` · `GET /auth/me` | Accounts and sessions; `/search/*` and `/items/*` require a session |
+| `/me/*` | Profile, interests, favorites, collections, search history, For-you picks, account settings |
 
 Errors always return `{"error": {"code", "message"}}`: 400 for an empty query, bad filter, bad
 file type or weak password; 401 without a session; 409 for a taken email; 413 for an oversized
@@ -152,6 +154,26 @@ CLIP is trained on web captions, not on matching a street photo of a garment to 
 * **Serving:** `adapter.npz` is applied in numpy (two matmuls) to query images; the index already
   stores adapted vectors. The Insights page shows pretrained vs fine-tuned Recall@K, the loss
   and validation curves, and the `r` search.
+
+## Profile & personal recommendations
+
+`/app/profile` keeps everything a person cares about on their account (SQLite, same file as the
+accounts, every table `ON DELETE CASCADE` from `users`):
+
+* **Favorites:** a heart on every result card and item page; optimistic, with rollback.
+* **Collections:** named boards of favorites. Adding to a board also saves the item.
+* **Interests:** categories and colours from the catalogue vocabulary, plus style tags
+  (minimal, streetwear, … or your own).
+* **Recent searches:** every successful text search is recorded server-side, so the chips
+  follow you to any device. Photo searches are never stored.
+* **"For you":** two explained sections.
+  * *Because you liked…* searches the photo index with a recency-weighted mean of your latest
+    favorites' vectors, using your chosen categories and colours as the ranking bonus.
+  * *Picked for your interests* searches the text index with a sentence built from your
+    interests.
+  * Favorites and duplicates are never shown.
+* **Settings:** name, bio, location, avatar colour, change email or password, and delete the
+  account (it needs the password and the email typed out, and removes every row).
 
 ## Accounts & themes
 

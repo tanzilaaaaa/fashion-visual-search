@@ -41,8 +41,8 @@ make kaggle-download    # → backend/artifacts/ (index.faiss, metadata.json, ma
 ## 3 · Hugging Face Space (backend)
 
 1. huggingface.co → **New Space** → SDK **Docker** → name `fashion-visual-search-api` → hardware *CPU basic (free)*.
-2. **Settings → Persistent storage**: enable the small tier, so accounts survive restarts. It is
-   mounted at `/data`.
+2. **Settings → Persistent storage**: enable the small tier, so accounts, favorites, collections,
+   interests and search history survive restarts. It is mounted at `/data`.
 3. **Settings → Variables and secrets**:
    * Variable `ARTIFACTS_REPO` = `<hf-user>/fvs-artifacts`
    * Secret `HF_TOKEN` = a **read** token that can see that repo (used only at build time)

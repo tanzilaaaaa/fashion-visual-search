@@ -16,7 +16,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from . import __version__
 from .api.errors import register_error_handlers
 from .api.limiter import configure_limits, limiter
-from .api.routes import auth, items, meta, search
+from .api.routes import auth, items, me, meta, search
 from .container import Container, build_container
 from .core.config import Settings, get_settings
 from .core.logging import configure_logging
@@ -83,7 +83,7 @@ def create_app(settings: Settings | None = None, container_factory: ContainerFac
         return response
 
     register_error_handlers(app)
-    for router in (search.router, items.router, meta.router, auth.router):
+    for router in (search.router, items.router, meta.router, auth.router, me.router):
         app.include_router(router)
 
     @app.get("/", include_in_schema=False)

@@ -10,6 +10,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
+
 from .query_parser import ParsedQuery
 from .search import RankedItem, RankingWeights, SearchService
 
@@ -100,3 +102,73 @@ class RecommendationService:
             items = sorted(pinned, key=lambda r: r.score, reverse=True) + rest
             groups.append(LookGroup(group, GROUP_LABELS.get(group, group.title()), items[:per_group]))
         return source, groups
+
+
+# --------------------------------------------------------------------------- #
+# "For you" — personal recommendations from favorites + interests
+# --------------------------------------------------------------------------- #
+@dataclass
+class ForYouSection:
+    key: str
+    title: str
+    items: list[RankedItem]
+
+
+def _mean_unit(vectors: np.ndarray, weights: np.ndarray) -> np.ndarray:
+    v = (vectors * weights[:, None]).sum(axis=0)
+    return (v / max(float(np.linalg.norm(v)), 1e-12)).astype(np.float32)
+
+
+def for_user(
+    rec: RecommendationService,
+    favorite_ids: list[str],
+    categories: list[str],
+    colours: list[str],
+    styles: list[str],
+    top_k: int = 12,
+) -> list[ForYouSection]:
+    """Up to two sections, each item carrying a human-readable reason.
+
+    1. "Because you liked…": a taste vector (recency-weighted mean of the latest
+       20 favorites' image-index vectors) searched in the photo index, with the
+       chosen categories/colours as the attribute bonus. Each pick names the
+       favorite it is closest to.
+    2. "Picked for your interests": a sentence built from the interests, searched
+       in the text index (pretrained CLIP space, where words match best).
+    Favorites and items already shown in section 1 are never repeated.
+    """
+    search, meta = rec.search, rec.search.metadata
+    targets = ParsedQuery(set(categories), set(colours))
+    weights = search.default_weights
+    sections: list[ForYouSection] = []
+
+    fav_pos = [p for p in (meta.position_of(i) for i in favorite_ids) if p is not None]
+    shown: set[int] = set(fav_pos)
+
+    if fav_pos:
+        recent = fav_pos[:20]  # favorite_ids are newest first
+        vecs = np.stack([search.index.vector(p) for p in recent])
+        recency = np.linspace(1.0, 0.5, num=len(recent), dtype=np.float32)
+        out = search.rank(_mean_unit(vecs, recency), top_k, {}, targets, weights, exclude=set(shown))
+        for r in out.items:
+            sims = vecs @ search.index.vector(r.position)
+            closest = meta.get(recent[int(np.argmax(sims))])
+            r.reason = f"Because you liked this {closest['category']}"
+            shown.add(r.position)
+        if out.items:
+            sections.append(ForYouSection("favorites", "Because you liked…", out.items))
+
+    if categories or colours or styles:
+        cat_labels = [meta.category_labels.get(c, c.replace("_", " ")) for c in categories]
+        words = [*styles, *colours]
+        sentence = f"a photo of {' '.join(words)} {' or '.join(cat_labels) or 'clothing'}".replace("  ", " ")
+        vector = search.embedding.encode_text(sentence)
+        out = search.rank(vector, top_k, {}, targets, weights, exclude=set(shown),
+                          index=search.text_index or search.index)
+        why = " · ".join([*colours, *[c.replace("_", " ") for c in categories], *styles][:5])
+        for r in out.items:
+            r.reason = f"Matches your interest in {why}"
+        if out.items:
+            sections.append(ForYouSection("interests", "Picked for your interests", out.items))
+
+    return sections

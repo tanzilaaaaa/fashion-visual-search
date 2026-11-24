@@ -10,7 +10,7 @@ export function LogoMark({ size = 32 }: { size?: number }) {
   );
 }
 
-export function Logo({ to = "/" }: { to?: string }) {
+export function Logo({ to = "/", compact = false }: { to?: string; compact?: boolean }) {
   return (
     <Link
       to={to}
@@ -18,7 +18,7 @@ export function Logo({ to = "/" }: { to?: string }) {
       aria-label="Lookbook home"
     >
       <LogoMark />
-      <span className="font-display text-xl font-semibold tracking-tight text-ink">Lookbook</span>
+      <span className={`font-display text-xl font-semibold tracking-tight text-ink ${compact ? "hidden sm:inline" : ""}`}>Lookbook</span>
     </Link>
   );
 }

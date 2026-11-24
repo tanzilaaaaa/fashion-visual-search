@@ -11,8 +11,10 @@ import { filtersResponse } from "./fixtures";
 
 vi.mock("../api/client", async (orig) => {
   const actual = await orig<typeof import("../api/client")>();
+  const { makeMe } = await import("./meMock");
   return {
     ...actual,
+    me: makeMe(),
     api: {
       me: vi.fn(),
       login: vi.fn(),

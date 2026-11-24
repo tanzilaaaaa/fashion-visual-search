@@ -143,3 +143,48 @@ export interface FinetuneReport {
   chosen_ratio: number;
   train_seconds: number;
 }
+
+// ------------------------------------------------------------------ profile (/me)
+export interface Interests {
+  categories: string[];
+  colours: string[];
+  styles: string[];
+}
+
+export interface ProfileResponse {
+  user: User;
+  profile: { bio: string; location: string; avatar_color: string };
+  interests: Interests;
+  stats: { favorites: number; collections: number; searches: number };
+  member_since: number;
+  avatar_colors: string[];
+  style_presets: string[];
+}
+
+export interface FavoriteItem extends ItemSummary {
+  saved_at: number;
+}
+
+export interface CollectionSummary {
+  id: number;
+  name: string;
+  created_at: number;
+  count: number;
+  cover: ItemSummary[];
+}
+
+export interface CollectionDetail extends CollectionSummary {
+  items: ItemSummary[];
+}
+
+export interface HistoryEntry {
+  id: number;
+  query: string;
+  created_at: number;
+}
+
+export interface ForYouResponse {
+  sections: { key: string; title: string; items: ScoredItem[] }[];
+  has_favorites: boolean;
+  has_interests: boolean;
+}

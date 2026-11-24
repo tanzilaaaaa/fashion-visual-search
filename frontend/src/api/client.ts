@@ -10,6 +10,14 @@ import type {
   SearchResponse,
   SessionResponse,
   ShowcaseResponse,
+  CollectionDetail,
+  CollectionSummary,
+  FavoriteItem,
+  ForYouResponse,
+  HistoryEntry,
+  Interests,
+  ProfileResponse,
+  User,
   SimilarResponse,
 } from "./types";
 
@@ -105,4 +113,41 @@ export const api = {
   register: (name: string, email: string, password: string) =>
     call<SessionResponse>(http.post("/auth/register", { name, email, password })),
   logout: () => call<SessionResponse>(http.post("/auth/logout")),
+};
+
+const enc = encodeURIComponent;
+
+/** The signed-in user's own data: profile, interests, favorites, collections, history, picks. */
+export const me = {
+  profile: () => call<ProfileResponse>(http.get("/me/profile")),
+  updateProfile: (patch: { name?: string; bio?: string; location?: string; avatar_color?: string }) =>
+    call<ProfileResponse>(http.patch("/me/profile", patch)),
+  setInterests: (interests: Interests) => call<Interests>(http.put("/me/interests", interests)),
+
+  favorites: () => call<{ total: number; items: FavoriteItem[] }>(http.get("/me/favorites")),
+  favoriteIds: () => call<{ ids: string[] }>(http.get("/me/favorites/ids")),
+  addFavorite: (id: string) => call<{ ids: string[] }>(http.put(`/me/favorites/${enc(id)}`)),
+  removeFavorite: (id: string) => call<{ ids: string[] }>(http.delete(`/me/favorites/${enc(id)}`)),
+
+  collections: () => call<{ collections: CollectionSummary[] }>(http.get("/me/collections")),
+  collection: (id: number) => call<CollectionDetail>(http.get(`/me/collections/${id}`)),
+  createCollection: (name: string) => call<CollectionDetail>(http.post("/me/collections", { name })),
+  renameCollection: (id: number, name: string) => call<CollectionDetail>(http.patch(`/me/collections/${id}`, { name })),
+  deleteCollection: (id: number) => call<void>(http.delete(`/me/collections/${id}`)),
+  addToCollection: (id: number, itemId: string) =>
+    call<CollectionDetail>(http.put(`/me/collections/${id}/items/${enc(itemId)}`)),
+  removeFromCollection: (id: number, itemId: string) =>
+    call<CollectionDetail>(http.delete(`/me/collections/${id}/items/${enc(itemId)}`)),
+
+  history: () => call<{ entries: HistoryEntry[] }>(http.get("/me/history")),
+  clearHistory: () => call<void>(http.delete("/me/history")),
+  deleteHistory: (id: number) => call<void>(http.delete(`/me/history/${id}`)),
+
+  recommendations: (topK = 12) => call<ForYouResponse>(http.get("/me/recommendations", { params: { top_k: topK } })),
+
+  changeEmail: (email: string, currentPassword: string) =>
+    call<User>(http.patch("/me/account", { email, current_password: currentPassword })),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    call<void>(http.post("/me/password", { current_password: currentPassword, new_password: newPassword })),
+  deleteAccount: (password: string) => call<void>(http.delete("/me/account", { data: { password } })),
 };

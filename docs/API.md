@@ -76,6 +76,24 @@ lower-cased. The `fvs_session` cookie is HttpOnly, `SameSite=Lax` and HMAC-signe
 existing account, `/search/*` and `/items/*` return **401** `unauthorized`. `/health`, `/filters`,
 `/images/*`, `/evaluation` and `/showcase` stay public.
 
+## Profile (`/me/*`, always needs a session for an existing account; 401 otherwise)
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /me/profile` · `PATCH /me/profile` | profile, interests and stats · update `{name?, bio?, location?, avatar_color?}` |
+| `PUT /me/interests` | `{categories, colours, styles}`. Unknown category or colour → 400 `unsupported_filter`; style tags 1–24 characters |
+| `GET /me/favorites` · `GET /me/favorites/ids` | saved items (newest first, with `saved_at`) · ids only |
+| `PUT` / `DELETE /me/favorites/{item_id}` | save / unsave (idempotent; unknown item → 404; more than 500 → 400 `limit_reached`) |
+| `GET` / `POST /me/collections` | list (with 4-item covers) / create `{name}` (409 `collection_exists`, case-insensitive) |
+| `GET` / `PATCH` / `DELETE /me/collections/{id}` | one collection / rename / delete (another user's id → 404) |
+| `PUT` / `DELETE /me/collections/{id}/items/{item_id}` | add (also favorites the item) / remove |
+| `GET /me/history` · `DELETE /me/history` · `DELETE /me/history/{id}` | last 20 distinct text searches, recorded by `POST /search/text` |
+| `GET /me/recommendations?top_k=12` | `{sections: [{key: "favorites" \| "interests", title, items}], has_favorites, has_interests}` |
+| `PATCH /me/account` · `POST /me/password` · `DELETE /me/account` | change email / password / delete everything (each needs the current password; 10/min) |
+
+Un-favoriting an item removes it from every collection. Deleting the account cascades through
+all profile tables and clears the session cookie.
+
 The browser reaches the API at `/api/*` on the frontend's own origin (Vite proxy locally, Vercel
 rewrite in production), so the cookie is first-party.
 

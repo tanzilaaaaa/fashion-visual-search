@@ -10,8 +10,10 @@ import { filtersResponse, searchResponse } from "./fixtures";
 
 vi.mock("../api/client", async (orig) => {
   const actual = await orig<typeof import("../api/client")>();
+  const { makeMe } = await import("./meMock");
   return {
     ...actual,
+    me: makeMe(),
     api: {
       searchText: vi.fn(),
       searchImage: vi.fn(),

@@ -1,4 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { me } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 
 const KEY = "fvs.searchHistory.v1";
 const MAX = 8;
@@ -21,22 +23,49 @@ function write(list: string[]) {
   }
 }
 
-/** Recent text queries, per browser (Could Have: search history). */
-export function useSearchHistory() {
-  const [history, setHistory] = useState<string[]>(read);
+const dedupe = (q: string, list: string[]) =>
+  [q, ...list.filter((p) => p.toLowerCase() !== q.toLowerCase())].slice(0, MAX);
 
-  const add = useCallback((q: string) => {
-    setHistory((prev) => {
-      const next = [q, ...prev.filter((p) => p.toLowerCase() !== q.toLowerCase())].slice(0, MAX);
-      write(next);
-      return next;
-    });
-  }, []);
+/**
+ * Recent text queries. Signed in: synced to the account (the server records every
+ * successful text search, so `add` only updates the screen right away). Accounts
+ * switched off on the server: kept in this browser only.
+ */
+export function useSearchHistory() {
+  const { user } = useAuth();
+  const synced = !!user;
+  const [history, setHistory] = useState<string[]>(() => (synced ? [] : read()));
+
+  useEffect(() => {
+    if (!synced) {
+      setHistory(read());
+      return;
+    }
+    let alive = true;
+    me.history()
+      .then((r) => alive && setHistory(r.entries.map((e) => e.query).slice(0, MAX)))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [synced, user?.id]);
+
+  const add = useCallback(
+    (q: string) => {
+      setHistory((prev) => {
+        const next = dedupe(q, prev);
+        if (!synced) write(next);
+        return next;
+      });
+    },
+    [synced],
+  );
 
   const clear = useCallback(() => {
-    write([]);
     setHistory([]);
-  }, []);
+    if (synced) void me.clearHistory().catch(() => undefined);
+    else write([]);
+  }, [synced]);
 
   return { history, add, clear };
 }

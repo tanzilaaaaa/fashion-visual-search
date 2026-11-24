@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import type { ScoredItem } from "../api/types";
 import { imageSrc } from "../api/client";
 import { altText, capitalise, COLOUR_SWATCH, formatScore, SOURCE_LABEL } from "../lib/format";
-import { ExpandIcon, LayersIcon, SparkIcon } from "./Icons";
+import { useAccount } from "../context/AccountContext";
+import { ExpandIcon, HeartIcon, LayersIcon, SparkIcon } from "./Icons";
 
 interface Props {
   item: ScoredItem;
@@ -10,6 +11,26 @@ interface Props {
   onExpand?: (item: ScoredItem) => void;
   showReason?: boolean;
   compact?: boolean;
+}
+
+export function SaveButton({ itemId, label, className = "" }: { itemId: string; label: string; className?: string }) {
+  const { enabled, isFavorite, toggleFavorite } = useAccount();
+  if (!enabled) return null;
+  const saved = isFavorite(itemId);
+  return (
+    <button
+      type="button"
+      onClick={() => void toggleFavorite(itemId)}
+      aria-pressed={saved}
+      aria-label={saved ? `Remove ${label} from favorites` : `Save ${label} to favorites`}
+      title={saved ? "Saved" : "Save"}
+      className={`glass grid h-9 w-9 place-items-center rounded-full transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${
+        saved ? "text-accent" : "text-ink"
+      } ${className}`}
+    >
+      <HeartIcon width={17} height={17} filled={saved} />
+    </button>
+  );
 }
 
 export function ResultCard({ item, rank, onExpand, showReason, compact }: Props) {
@@ -42,6 +63,7 @@ export function ResultCard({ item, rank, onExpand, showReason, compact }: Props)
         >
           {formatScore(item.score)}
         </span>
+        <SaveButton itemId={item.item_id} label={altText(item)} className="absolute bottom-2.5 left-2.5" />
         {onExpand && (
           <button
             type="button"

@@ -104,6 +104,8 @@ class UserStore:
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
+        # Profile tables reference users(id) ON DELETE CASCADE; SQLite enforces that per connection.
+        db.execute("PRAGMA foreign_keys = ON")
         return db
 
     @staticmethod
@@ -137,6 +139,33 @@ class UserStore:
             verify_password(password, _DUMMY_HASH)
             return None
         return self._user(row) if verify_password(password, row["password_hash"]) else None
+
+    def check_password(self, user_id: int, password: str) -> bool:
+        with closing(self._connect()) as db:
+            row = db.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+        return row is not None and verify_password(password, row["password_hash"])
+
+    def update_name(self, user_id: int, name: str) -> User | None:
+        with closing(self._connect()) as db, db:
+            db.execute("UPDATE users SET name = ? WHERE id = ?", (name.strip(), user_id))
+        return self.get(user_id)
+
+    def update_email(self, user_id: int, email: str) -> User | None:
+        try:
+            with closing(self._connect()) as db, db:
+                db.execute("UPDATE users SET email = ? WHERE id = ?", (normalise_email(email), user_id))
+        except sqlite3.IntegrityError as exc:
+            raise EmailTaken(email) from exc
+        return self.get(user_id)
+
+    def set_password(self, user_id: int, new_password: str) -> None:
+        with closing(self._connect()) as db, db:
+            db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(new_password), user_id))
+
+    def delete(self, user_id: int) -> None:
+        """Delete the account; every profile table cascades from users(id)."""
+        with closing(self._connect()) as db, db:
+            db.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
     def count(self) -> int:
         with closing(self._connect()) as db:
