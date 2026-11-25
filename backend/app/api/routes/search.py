@@ -117,8 +117,15 @@ async def _read_upload(request: Request, file: UploadFile, limit: int) -> bytes:
 def _decode(data: bytes) -> Image.Image:
     try:
         img = Image.open(io.BytesIO(data))
+        # JPEG draft mode decodes straight to a reduced size (>= 448 px on the short side):
+        # CLIP only needs 224 px, and a 12 MP phone photo would otherwise briefly cost
+        # ~36 MB of RGB on a 512 MB instance. Other formats decode normally.
+        img.draft("RGB", (448, 448))
         img.load()
-        return img.convert("RGB")
+        img = img.convert("RGB")
+        if min(img.size) > 448:
+            img.thumbnail((448 * max(img.size) // min(img.size),) * 2, Image.BICUBIC)
+        return img
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
         raise bad_request("The image could not be read. It may be corrupted.", "invalid_image") from exc
 

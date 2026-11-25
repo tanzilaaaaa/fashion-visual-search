@@ -1,109 +1,86 @@
 # Deployment
 
-Target: **frontend on Vercel** and **backend on Hugging Face Spaces (Docker)**, with **index
-artifacts in a private Hugging Face dataset repo**. Everything below uses free tiers.
+Target: **backend on Render** (native Python runtime, free plan; no Docker), **frontend on
+Vercel**, **search data in a private Hugging Face dataset** (`tanzilaaaaa/fvs-artifacts`).
 
-> Why not Render (PRD §13)? Measured peak memory of the backend is **~1.2 GB** (CLIP in PyTorch,
-> the photo and text indexes, and the item data). Render's free and Starter plans give 512 MB, and
-> free services also wipe their disk on every restart or 15-minute sleep. Render works on a paid
-> 2 GB "Standard" instance with a persistent disk. A free Docker Space has 16 GB RAM and uses the
-> same Dockerfile.
+## Why the backend needed a "small" mode
 
-## 1 · GitHub
+The full backend (CLIP in PyTorch, float32 indexes, JSON metadata) peaks at **~1.2 GB** of
+memory. Render's free plan has **512 MB**. The deployed backend runs a small-memory version
+with the same results:
+
+| Piece | Full (local dev) | Small (Render) | How |
+|---|---|---|---|
+| CLIP ViT-B/32 | PyTorch, ~600 MB | ONNX Runtime, int8 weights, ~190 MB on disk | `scripts/export_onnx.py` (weight-only int8; the 49k-word embedding table is a memory-mapped float16 file) |
+| Photo + text indexes | 2 × 102 MB float32 | 2 × 26 MB, 8-bit | `scripts/compact_artifacts.py` (FAISS `IndexScalarQuantizer`) |
+| Item metadata | 15 MB JSON → ~250 MB of objects | 0.9 MB `metadata.npz` | columnar arrays, item dicts built on demand |
+| Uploaded photos | full-size decode | JPEG draft decode + browser-side resize to ≤ 1024 px | `routes/search.py`, `ImageDropzone.tsx` |
+
+Measured agreement with the full version: CLIP embeddings cosine ≥ 0.9998. On sample
+queries, the top result was identical 6/6 and the top-10 overlap averaged 9.7/10. Indexes:
+same top-1 on 100% of probes. Searches run single-threaded on the free CPU.
+
+The small files are produced once from the full artifacts and stored under `small/` in the
+dataset. Render's build only downloads them, so PyTorch is never installed on Render.
+
+## 1 · Data (already done)
 
 ```bash
-cd fashion-visual-search
-git remote add origin https://github.com/<you>/fashion-visual-search.git
-git push -u origin main
+.venv/bin/hf auth login     # WRITE token
+# full artifacts (local dev): index.faiss, text_index.faiss, metadata.json, adapter.npz, … + images.tar
+# small artifacts (Render): small/{index.faiss,text_index.faiss,metadata.npz,adapter.npz,manifest.json,evaluation.json,onnx/*}
+cd backend
+python scripts/export_onnx.py --out /tmp/small/onnx --check          # needs requirements-ml.txt
+cp artifacts/{index.faiss,text_index.faiss,metadata.json,adapter.npz,manifest.json,evaluation.json} /tmp/small/
+python scripts/compact_artifacts.py --artifacts /tmp/small --check
+../.venv/bin/hf upload <hf-user>/fvs-artifacts /tmp/small small --repo-type dataset --private
 ```
 
-CI (`.github/workflows/ci.yml`) runs on every push and PR: backend lint + tests, ML lint +
-tests, frontend tests + build, and a Docker build.
+Keep the dataset **private**: DeepFashion2's terms forbid redistribution.
 
-## 2 · Build the index (and fine-tune) on Kaggle
+## 2 · Backend on Render (free, native Python)
 
-```bash
-.venv/bin/pip install -e "ml[kaggle]"
-# Kaggle → Settings → API → "Create New Token"; save the KGAT_… token:
-mkdir -p ~/.kaggle && printf '%s' 'KGAT_…' > ~/.kaggle/access_token && chmod 600 ~/.kaggle/access_token
-make kaggle-build       # private script kernel: T4 GPU, internet on, DeepFashion2 attached
-make kaggle-status      # wait for "complete" (~1–1.5 h)
-make kaggle-download    # → backend/artifacts/ (index.faiss, metadata.json, manifest.json,
-                        #    evaluation.json, adapter.npz, images/)
-```
+`render.yaml` at the repo root is a Render Blueprint:
 
-* The Kaggle account must be **phone-verified**. Otherwise Kaggle silently disables internet
-  and the GPU, and the kernel fails at `pip install`.
-* `run_kaggle.py` embeds the `fvs_ml` sources in the kernel, so it doesn't need a GitHub clone.
-* To deploy, upload the artifacts (~660 MB) to a **private** HF dataset repo
-  `<hf-user>/fvs-artifacts`. Keep it private: DeepFashion2's terms forbid redistribution. The
-  50k thumbnails go up as one `images.tar`, which uploads far faster than 50k small files:
-  ```bash
-  .venv/bin/hf auth login                                  # paste a WRITE token from hf.co/settings/tokens
-  tar -cf /tmp/images.tar -C backend/artifacts images
-  .venv/bin/hf upload <hf-user>/fvs-artifacts backend/artifacts . --repo-type dataset --private --exclude "images/*"
-  .venv/bin/hf upload <hf-user>/fvs-artifacts /tmp/images.tar images.tar --repo-type dataset --private
-  ```
-  `backend/scripts/fetch_artifacts.py` downloads the repo during the Docker build and unpacks
-  `images.tar`.
+1. render.com → sign in with GitHub → **New → Blueprint** → choose `fashion-visual-search`.
+2. Render reads `render.yaml` and asks for two values:
+   * `HF_TOKEN`: a Hugging Face **read** token (huggingface.co/settings/tokens → *Create new
+     token* → type *Read*). The build uses it to download the private dataset.
+   * `ALLOWED_ORIGINS`: your Vercel URL (e.g. `https://lookbook.vercel.app`).
+3. **Apply.** The build runs `pip install -r requirements.txt` and
+   `python scripts/fetch_artifacts.py --subset small`. The start command is
+   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+4. Check `https://lookbook-api.onrender.com/health` → `"index_loaded": true` (the exact URL is
+   shown in the Render dashboard).
 
-## 3 · Hugging Face Space (backend)
+Every push to `main` redeploys automatically.
 
-1. huggingface.co → **New Space** → SDK **Docker** → name `fashion-visual-search-api` → hardware *CPU basic (free)*.
-2. **Account data:** a Space's own disk is wiped whenever it restarts. That happens on every
-   deploy, and when a free Space wakes from its 48-hour sleep. Accounts, favorites, collections,
-   interests and history (`users.db`) live there by default. For a demo that's acceptable. To
-   keep them, attach a Hugging Face **Storage Bucket** at `/data` (Settings → Storage; billed per
-   TB with a free allowance, see hf.co/storage) and set `USERS_DB_PATH=/data/users.db`. Buckets
-   are mounted at runtime only, and SQLite on a network mount should be tested. A managed
-   Postgres database (e.g. Neon's free tier) is the robust alternative but needs a code change.
-3. **Settings → Variables and secrets**:
-   * Variable `ARTIFACTS_REPO` = `<hf-user>/fvs-artifacts`
-   * Secret `HF_TOKEN` = a **read** token that can see that repo (used only at build time)
-   * Variable `AUTH_ENABLED` = `true` (and `USERS_DB_PATH` = `/data/users.db` only if a bucket is attached)
-   * Secret `SESSION_SECRET` = a long random string (`python -c "import secrets;print(secrets.token_urlsafe(48))"`)
-   * Variable `COOKIE_SECURE` = `true`
-   * Variable `ALLOWED_ORIGINS` = `https://<your-app>.vercel.app` (only for direct API calls; the
-     app itself goes through the Vercel proxy)
-4. Deploy the backend code, either:
-   * **automatically:** in GitHub repo settings add secret `HF_TOKEN` (a *write* token) and
-     variables `HF_SPACE=<hf-user>/fashion-visual-search-api` and
-     `API_URL=https://<hf-user>-fashion-visual-search-api.hf.space`. Every push to `main` then
-     syncs `backend/` to the Space and waits for `/health` to report `index_loaded: true`; or
-   * **manually, once:**
-     ```bash
-     cp deploy/huggingface/README.md backend/README.md && git add -A && git commit -m "Space README"
-     git subtree push --prefix backend https://huggingface.co/spaces/<hf-user>/fashion-visual-search-api main
-     ```
-5. The first build downloads the artifacts and bakes in the CLIP weights (~5–10 min). Then check
-   `https://<hf-user>-fashion-visual-search-api.hf.space/health`.
+**Free plan behaviour:**
+* The service sleeps after **15 minutes** without traffic; the next visit takes about a minute
+  to wake it (the site shows "the server may be waking up").
+* The disk is wiped on every restart, redeploy and sleep. **Accounts, favorites, collections
+  and history reset** (demo mode). Keeping them needs a database. Render's free Postgres is
+  deleted after 30 days, so use something like Neon's free tier (needs a code change), or a
+  paid Render disk.
 
-## 4 · Vercel (frontend)
+## 3 · Frontend on Vercel
 
-1. In `frontend/vercel.json`, replace `<hf-user>` in the `/api/:path*` rewrite with your HF
-   username, then commit. That rewrite proxies `/api/*` to the Space, so the session cookie is
-   first-party. A direct cross-site cookie would be blocked by Safari and by any browser that
-   blocks third-party cookies.
-2. vercel.com → **Add New Project** → import the GitHub repo → **Root Directory** `frontend`
-   (Vite is detected).
-3. Leave `VITE_API_BASE_URL` unset. It defaults to `/api`.
-4. Deploy. Every push to `main` redeploys automatically, and PRs get preview URLs.
+1. `frontend/vercel.json` proxies `/api/*` to the Render URL. If Render gave your service a
+   different URL, update the `destination` there and commit.
+2. Deploy, either:
+   * **CLI:** `cd frontend && npx vercel --prod`, or
+   * **Git:** vercel.com → *Add New Project* → import the repo → **Root Directory**
+     `frontend` (Vite is detected; no environment variables needed).
 
-## Cold starts
-
-Free Spaces sleep after ~48 h without traffic. The first request after sleeping waits for the
-container to start (model + index load ≈ 10–20 s); later requests take milliseconds. The app
-header shows the server status. Before the final demo, open the URL once to wake it, or upgrade
-the Space hardware so it never sleeps.
+The browser only talks to the Vercel domain. Vercel forwards `/api/*` to Render, so the login
+cookie is first-party and works in every browser.
 
 ## Configuration reference
 
-All variables are listed in `backend/.env.example`. The important ones are:
-* `AUTH_ENABLED` (true), `USERS_DB_PATH`, `SESSION_SECRET`, `COOKIE_SECURE`;
-* `ALLOWED_ORIGINS`, `MAX_UPLOAD_MB` (8), `TOP_K_DEFAULT` (24);
-* `RANK_ALPHA`/`RANK_BETA` (0.85/0.15), `RATE_LIMIT` (60/minute);
-* `MODEL_NAME` (`ViT-B-32-quickgelu`).
+All backend variables are in `backend/.env.example`. Render-specific ones are in `render.yaml`:
+* `MODEL_BACKEND=onnx`, `ARTIFACTS_REPO`, `HF_TOKEN` (build only), `PYTHON_VERSION=3.11.11`;
+* `AUTH_ENABLED`, `COOKIE_SECURE`, `SESSION_SECRET` (generated by Render), `ALLOWED_ORIGINS`;
+* `OMP_NUM_THREADS=1`, `OPENBLAS_NUM_THREADS=1`, `MALLOC_ARENA_MAX=2` (lower memory).
 
-The adapter is picked up automatically when `manifest.json` lists it. If the manifest lists an
-adapter but `adapter.npz` is missing, `/health` reports `degraded` instead of serving mismatched
-vectors. Model, index and image paths are internal to the container and never exposed by the API.
+Local development is unchanged: `make dev-api` uses PyTorch and the full artifacts when no
+`artifacts/onnx/` folder is present.

@@ -7,6 +7,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .compact_metadata import CompactItems
+
 # Filterable fields exposed to the UI and their human labels.
 FILTER_FIELDS = {
     "category": ("category_key", "Category"),
@@ -25,11 +27,19 @@ class UnknownFilterValue(ValueError):
 
 
 class MetadataService:
-    def __init__(self, items: list[dict]):
+    def __init__(self, items: list[dict] | CompactItems):
+        self.items = items
+        if isinstance(items, CompactItems):
+            # Columnar fast path: no per-item dicts are built at start-up.
+            ids = items.item_ids()
+            self.by_item_id = {str(item_id): i for i, item_id in enumerate(ids)}
+            self._columns = {field: items.column(key).astype(object) for field, (key, _) in FILTER_FIELDS.items()}
+            keys, labels = items.column("category_key"), items.column("category")
+            self.category_labels = {str(k): str(v) for k, v in zip(keys, labels)}
+            return
         for expected, item in enumerate(items):
             if item.get("position", expected) != expected:
                 raise ValueError("metadata positions are not contiguous — index/lookup drift")
-        self.items = items
         self.by_item_id = {it["item_id"]: i for i, it in enumerate(items)}
         self._columns = {
             field: np.array([str(it.get(key, "")) for it in items], dtype=object)
@@ -39,6 +49,10 @@ class MetadataService:
 
     @classmethod
     def load(cls, path: Path) -> MetadataService:
+        """Prefer the compact ``metadata.npz`` next to ``path`` (written at build time)."""
+        compact = Path(path).with_suffix(".npz")
+        if compact.exists():
+            return cls(CompactItems(compact))
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
         return cls(data["items"] if isinstance(data, dict) else data)

@@ -52,6 +52,15 @@ def _read_json(path) -> dict | None:
         return None
 
 
+def _make_encoder(settings: Settings) -> Encoder:
+    onnx_ready = (settings.resolved_onnx_dir / "config.json").exists()
+    if settings.model_backend == "onnx" or (settings.model_backend == "auto" and onnx_ready):
+        from .services.onnx_encoder import OnnxClipEncoder
+
+        return OnnxClipEncoder(settings.resolved_onnx_dir, threads=settings.onnx_threads)
+    return ClipEncoder(settings.model_name, settings.model_pretrained)
+
+
 def build_container(settings: Settings, encoder: Encoder | None = None) -> Container:
     c = Container(
         settings=settings,
@@ -86,12 +95,16 @@ def build_container(settings: Settings, encoder: Encoder | None = None) -> Conta
 
         if encoder is None and settings.load_model_on_startup:
             t = time.perf_counter()
-            encoder = ClipEncoder(settings.model_name, settings.model_pretrained)
+            encoder = _make_encoder(settings)
             c.load_seconds["model"] = round(time.perf_counter() - t, 2)
         if encoder is not None:
             if encoder.dim != c.index.dim:
                 raise ValueError(f"encoder dim {encoder.dim} != index dim {c.index.dim}")
             c.embedding = EmbeddingService(encoder, adapter=adapter)
+            # Label prototypes for photo colour/category guesses: ~80 text encodings that would
+            # otherwise run on the first photo search (≈100 s on a 0.1-CPU instance).
+            if (artifacts / "prototypes.npz").exists():
+                c.embedding.load_prototypes(artifacts / "prototypes.npz")
             c.search = SearchService(
                 c.embedding, c.index, c.metadata,
                 RankingWeights(settings.rank_alpha, settings.rank_beta),

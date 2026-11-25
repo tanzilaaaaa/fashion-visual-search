@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://<hf-user>-fashion-visual-search-api.hf.space/:path*"
+      "destination": "https://lookbook-api.onrender.com/:path*"
     },
     {
       "source": "/(.*)",

@@ -1,5 +1,7 @@
-# CLIP inference. In Docker, torch/torchvision are installed from the CPU-only index first.
+# Local development and model export only (never installed on Render):
+# full-precision CLIP in PyTorch, plus the ONNX export toolchain.
 torch==2.15.0
 torchvision==0.29.2
 open_clip_torch==4.2.2
-huggingface_hub==2.4.0
+onnx==1.23.2
+onnxscript==0.7.2

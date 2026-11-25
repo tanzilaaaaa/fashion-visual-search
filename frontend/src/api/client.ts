@@ -30,7 +30,8 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replac
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30_000,
+  // A free Render instance sleeps after 15 min idle and takes ~1 min to wake; allow for it.
+  timeout: 90_000,
   withCredentials: true,
 });
 
@@ -53,7 +54,7 @@ export function toApiError(err: unknown): ApiError {
     if (!ax.response) {
       const msg =
         ax.code === "ECONNABORTED"
-          ? "The server took too long to respond. It may be waking up — please try again."
+          ? "The server is taking a while. It may be waking up after being idle, so please try again in a moment."
           : "Can't reach the search server. Check your connection or try again in a moment.";
       return new ApiError(msg, 0, "network_error");
     }

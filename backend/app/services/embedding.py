@@ -124,6 +124,25 @@ class EmbeddingService:
         self._prototypes[kind] = (labels, arr)
         return arr
 
+    def save_prototypes(self, path) -> None:
+        """Persist computed label prototypes (``prototypes.npz``) so a cold start skips them."""
+        data = {}
+        for kind, (labels, arr) in self._prototypes.items():
+            data[f"{kind}__labels"] = np.array(labels, dtype=str)
+            data[f"{kind}__vectors"] = arr
+        np.savez(path, **data)
+
+    def load_prototypes(self, path) -> list[str]:
+        """Load precomputed prototypes; returns the kinds loaded. Labels are re-checked on use."""
+        loaded = []
+        with np.load(path, allow_pickle=False) as z:
+            for key in z.files:
+                if key.endswith("__labels"):
+                    kind = key[: -len("__labels")]
+                    self._prototypes[kind] = ([str(x) for x in z[key]], z[f"{kind}__vectors"].astype(np.float32))
+                    loaded.append(kind)
+        return loaded
+
     def zero_shot(
         self, vector: np.ndarray, kind: str, labels: list[str], temperature: float = 100.0
     ) -> tuple[str, float]:

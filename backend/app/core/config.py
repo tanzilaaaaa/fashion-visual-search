@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Model & artifacts
     model_name: str = "ViT-B-32-quickgelu"
     model_pretrained: str = "openai"
+    # "auto": ONNX Runtime when artifacts/onnx/config.json exists (small-memory deploys), else PyTorch.
+    model_backend: str = "auto"
+    onnx_model_dir: Path | None = None
+    onnx_threads: int = 1
     artifacts_dir: Path = BACKEND_DIR / "artifacts"
     index_path: Path | None = None
     metadata_path: Path | None = None
@@ -78,6 +82,10 @@ class Settings(BaseSettings):
     @property
     def resolved_evaluation_path(self) -> Path:
         return self.evaluation_path or self.artifacts_dir / "evaluation.json"
+
+    @property
+    def resolved_onnx_dir(self) -> Path:
+        return self.onnx_model_dir or self.artifacts_dir / "onnx"
 
     @property
     def resolved_users_db_path(self) -> Path:

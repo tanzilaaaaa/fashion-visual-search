@@ -1,0 +1,40 @@
+# Render Blueprint: the Lookbook API on Render's native Python runtime (no Docker), free plan.
+# Render dashboard → New → Blueprint → pick this repo. You'll be asked for HF_TOKEN (a Hugging
+# Face READ token for the private dataset) and ALLOWED_ORIGINS (your Vercel URL).
+services:
+  - type: web
+    name: lookbook-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: backend
+    # Installs the API (no PyTorch) and downloads the ready-made small-memory artifacts:
+    # int8-weight ONNX CLIP, 8-bit FAISS indexes, columnar metadata and the thumbnails.
+    buildCommand: pip install -r requirements.txt && python scripts/fetch_artifacts.py --dest artifacts --subset small
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: ARTIFACTS_REPO
+        value: tanzilaaaaa/fvs-artifacts
+      - key: HF_TOKEN
+        sync: false
+      - key: MODEL_BACKEND
+        value: onnx
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Keep native libraries single-threaded: fewer per-thread buffers on a 512 MB instance.
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: MALLOC_ARENA_MAX
+        value: "2"

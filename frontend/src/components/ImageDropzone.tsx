@@ -4,6 +4,30 @@ import { CameraIcon } from "./Icons";
 export const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const MAX_UPLOAD_MB = 8;
 
+/**
+ * Shrink a photo in the browser before upload (longest side <= 1024 px, JPEG): CLIP only
+ * needs 224 px, uploads get much faster on mobile data, and requests stay small through
+ * the Vercel proxy. Falls back to the original file wherever canvas decoding isn't available.
+ */
+export async function downscaleImage(file: File, maxSide = 1024): Promise<File> {
+  try {
+    if (typeof createImageBitmap !== "function") return file;
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.size < 1_500_000) return file;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.9));
+    return blob ? new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
+  } catch {
+    return file;
+  }
+}
+
 /** Client-side check mirroring the API's rules, so most mistakes are caught instantly. */
 export function validateImage(file: File): string | null {
   if (!ACCEPTED_TYPES.includes(file.type)) return "Unsupported file type. Please choose a JPEG, PNG or WebP image.";
@@ -22,11 +46,11 @@ export function ImageDropzone({ busy, previewUrl, onFile }: Props) {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handle = (file?: File | null) => {
+  const handle = async (file?: File | null) => {
     if (!file) return;
     const problem = validateImage(file);
     setError(problem);
-    if (!problem) onFile(file);
+    if (!problem) onFile(await downscaleImage(file));
   };
 
   const onDrop = (e: DragEvent) => {
