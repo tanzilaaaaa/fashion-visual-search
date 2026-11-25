@@ -50,7 +50,7 @@ Keep the dataset **private**: DeepFashion2's terms forbid redistribution.
 3. **Apply.** The build runs `pip install -r requirements.txt` and
    `python scripts/fetch_artifacts.py --subset small`. The start command is
    `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-4. Check `https://lookbook-api.onrender.com/health` → `"index_loaded": true` (the exact URL is
+4. Check `https://lookbook-api-809v.onrender.com/health` → `"index_loaded": true` (the exact URL is
    shown in the Render dashboard).
 
 Every push to `main` redeploys automatically.

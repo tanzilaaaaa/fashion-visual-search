@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://lookbook-api.onrender.com/:path*"
+      "destination": "https://lookbook-api-809v.onrender.com/:path*"
     },
     {
       "source": "/(.*)",
